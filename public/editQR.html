@@ -1,0 +1,129 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Edit QR • Dynamic QR Code</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/header.css">
+  <style>
+    .wide { width:100%; max-width: 760px; }
+    .row-inline { display:flex; gap:10px; }
+    .row-inline .input { flex:1; }
+    .qr-line { display:flex; gap:14px; align-items:center; margin-bottom: 10px; }
+    .qr-line img { width:120px; height:120px; border:1px solid var(--border); border-radius:8px; }
+  </style>
+</head>
+<body>
+<header class="header">
+  <a class="header__brand" href="/">Dynamic QR Code</a>
+  <nav class="nav">
+    <a href="/dashboard.html">Dashboard</a>
+    <div class="QRCode-menu">
+      <button type="button" onclick="toggleQRCodeMenu()">QR Code ▾</button>
+      <div class="QRCode-dropdown" id="QRCodeDropdown">
+        <a href="/generateQR.html">Generate QR Codes</a>
+        <a href="/qr.html">My QR Codes</a>
+      </div>
+    </div>
+    <div class="profile-menu">
+      <button type="button" onclick="toggleProfileMenu()">Profile ▾</button>
+      <div class="profile-dropdown" id="profileDropdown">
+        <a href="/profile.html">View Profile</a>
+        <form action="/auth/logout" method="post"><button type="submit">Logout</button></form>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<main class="container">
+  <form class="card wide" id="f" method="post">
+    <h1>Edit QR</h1>
+    <p class="sub">Retarget the destination — the QR image stays the same.</p>
+
+    <div id="form-msg"></div>
+
+    <div class="qr-line">
+      <img id="qrImg" alt="QR">
+      <div>
+        <div><strong>Name:</strong> <span id="qrName">—</span></div>
+        <div><strong>Slug:</strong> <span id="qrSlug">—</span></div>
+        <div><a id="qrDyn" class="link" href="#" target="_blank">Open dynamic link</a></div>
+        <div><a id="dlLink" class="link" href="#" download>Download SVG</a></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <input class="input" type="url" name="url" id="url" placeholder="New Destination URL (http/https)" required>
+    </div>
+
+    <div class="row row-inline">
+      <input class="input" type="text" name="utm_source" id="utm_source" placeholder="utm_source (optional)">
+      <input class="input" type="text" name="utm_medium" id="utm_medium" placeholder="utm_medium (optional)">
+      <input class="input" type="text" name="utm_campaign" id="utm_campaign" placeholder="utm_campaign (optional)">
+    </div>
+
+    <button class="btn" type="submit">Save new target</button>
+  </form>
+</main>
+
+<script>
+  // dropdown toggles
+  function toggleProfileMenu(){ const dd=document.getElementById('profileDropdown'); dd.style.display=dd.style.display==='block'?'none':'block'; }
+  function toggleQRCodeMenu(){ const dd=document.getElementById('QRCodeDropdown'); dd.style.display=dd.style.display==='block'?'none':'block'; }
+  document.addEventListener('click', (e) => {
+    ['profile','QRCode'].forEach(k=>{
+      const menu=document.getElementById(k+'Dropdown');
+      const btn=document.querySelector('.'+k+'-menu button');
+      if(menu && btn && !menu.contains(e.target) && !btn.contains(e.target)) menu.style.display='none';
+    });
+  });
+
+  const params = new URLSearchParams(location.search);
+  const slug = params.get('slug');
+  const msgEl = document.getElementById('form-msg');
+
+  if (!slug) {
+    msgEl.className='error'; msgEl.textContent='Missing slug';
+  } else {
+    // preload details
+    (async function(){
+      const me = await fetch('/api/me', { credentials:'include' });
+      if (me.status===401) { location.href='/login.html?error=Session+expired'; return; }
+
+      const r = await fetch('/api/qr/'+encodeURIComponent(slug), { credentials:'include' });
+      if (!r.ok) { msgEl.className='error'; msgEl.textContent='Not found'; return; }
+      const d = await r.json();
+
+      document.getElementById('qrName').textContent = d.Name;
+      document.getElementById('qrSlug').textContent = d.Slug;
+      document.getElementById('url').value = d.CurrentUrl || '';
+      if (d.UTM && d.UTM.source) document.getElementById('utm_source').value = d.UTM.source;
+      if (d.UTM && d.UTM.medium) document.getElementById('utm_medium').value = d.UTM.medium;
+      if (d.UTM && d.UTM.campaign) document.getElementById('utm_campaign').value = d.UTM.campaign;
+
+      const img = document.getElementById('qrImg');
+      const dl = document.getElementById('dlLink');
+      const dyn = document.getElementById('qrDyn');
+
+      img.src = '/qr/'+encodeURIComponent(slug)+'.svg';
+      dl.href = img.src; dl.download = slug+'.svg';
+      dyn.href = '/r/'+encodeURIComponent(slug);
+    })();
+  }
+
+  // submit retarget
+  document.getElementById('f').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const r = await fetch('/qr/'+encodeURIComponent(slug)+'/retarget', {
+      method: 'POST',
+      body: fd,
+      credentials: 'include'
+    });
+    if (r.redirected) { location.href = r.url; return; }
+    if (r.ok) { msgEl.className='success'; msgEl.textContent='Target updated'; }
+    else { msgEl.className='error'; msgEl.textContent='Failed to update'; }
+  });
+</script>
+</body>
+</html>

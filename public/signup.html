@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Sign up • Dynamic QR Code</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="header">
+    <a class="header__brand" href="/">Dynamic QR Code</a>
+  </header>
+
+  <main class="container">
+    <form class="card" action="/auth/signup" method="post">
+      <h1>Create account</h1>
+      <p class="sub">Start generating dynamic QR codes</p>
+
+      <div id="form-msg" class=""></div>
+
+      <div class="row">
+        <input class="input" type="email" name="email" placeholder="Email" required />
+      </div>
+      <div class="row">
+        <input class="input" type="password" name="password" placeholder="Password (min 8)" minlength="8" required />
+      </div>
+
+      <button class="btn" type="submit">Create account</button>
+
+      <p style="margin-top:12px; text-align:center;">
+        Have an account? <a class="link" href="/login.html">Log in</a>
+      </p>
+    </form>
+  </main>
+
+  <div id="form-msg" class=""></div>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const msg = document.getElementById('form-msg');
+    if (params.get('error')) { msg.className = 'error'; msg.textContent = params.get('error'); }
+    if (params.get('success')) { msg.className = 'success'; msg.textContent = params.get('success'); }
+  </script>
+</body>
+</html>

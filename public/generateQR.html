@@ -1,0 +1,182 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Generate QR • Dynamic QR Code</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Shared styles -->
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/header.css">
+  <!-- Page-specific styles -->
+  <link rel="stylesheet" href="css/generate.css">
+</head>
+<body>
+<header class="header">
+  <a class="header__brand" href="/">Dynamic QR Code</a>
+  <nav class="nav">
+    <a href="/dashboard.html">Dashboard</a>
+    <div class="QRCode-menu">
+      <button type="button" onclick="toggleQRCodeMenu()">QR Code ▾</button>
+      <div class="QRCode-dropdown" id="QRCodeDropdown">
+        <a href="/generateQR.html">Generate QR Codes</a>
+        <a href="/qr.html">My QR Codes</a>
+      </div>
+    </div>
+    <div class="profile-menu">
+      <button type="button" onclick="toggleProfileMenu()">Profile ▾</button>
+      <div class="profile-dropdown" id="profileDropdown">
+        <a href="/profile.html">View Profile</a>
+        <form action="/auth/logout" method="post"><button type="submit">Logout</button></form>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<main class="container">
+  <div class="grid wide">
+    <!-- LEFT: form -->
+    <form class="card" id="createForm" action="/qr/create" method="post">
+      <h1>Generate Dynamic QR</h1>
+      <p class="sub">Design your code and see a live preview. The image stays the same even if you change the destination later.</p>
+
+      <div id="form-msg"></div>
+
+      <div class="row">
+        <label>Name</label>
+        <input class="input" type="text" name="name" placeholder="e.g., Summer Promo" required>
+        <div class="help">For your reference in the list.</div>
+      </div>
+
+      <div class="row">
+        <label>Slug (optional)</label>
+        <input class="input" type="text" name="slug" placeholder="letters, numbers or -">
+        <div class="help">If blank, we’ll generate one (e.g., abc123). Your dynamic link will be <code>/r/&lt;slug&gt;</code>.</div>
+      </div>
+
+      <div class="row">
+        <label>Destination URL</label>
+        <input class="input" type="url" name="url" placeholder="https://example.com/landing" required>
+        <div class="help">The page users see after scanning. UTM tags are added automatically if you set them below.</div>
+      </div>
+
+      <div class="row row-inline">
+        <div>
+          <label>utm_source</label>
+          <input class="input" type="text" name="utm_source" placeholder="e.g., flyer">
+        </div>
+        <div>
+          <label>utm_medium</label>
+          <input class="input" type="text" name="utm_medium" placeholder="e.g., qr">
+        </div>
+        <div>
+          <label>utm_campaign</label>
+          <input class="input" type="text" name="utm_campaign" placeholder="e.g., summer2025">
+        </div>
+      </div>
+
+      <div class="row row-inline">
+        <div>
+          <label>Foreground</label>
+          <input class="input" type="color" name="fg" value="#0b3d91">
+        </div>
+        <div>
+          <label>Background</label>
+          <input class="input" type="color" name="bg" value="#ffffff">
+        </div>
+        <div>
+          <label>Error correction</label>
+          <select class="input" name="ec">
+            <option value="L">L (7%)</option>
+            <option value="M" selected>M (15%)</option>
+            <option value="Q">Q (25%)</option>
+            <option value="H">H (30%)</option>
+          </select>
+        </div>
+        <div>
+          <label>Format</label>
+          <select class="input" name="format">
+            <option value="svg" selected>SVG</option>
+            <option value="png" disabled>PNG (coming soon)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <label>Center logo (optional)</label>
+        <div class="logo-row">
+          <input type="file" id="logoInput" accept=".png,.jpg,.jpeg,.svg" />
+          <input type="hidden" name="logoUrl" id="logoUrl">
+          <img id="logoThumb" alt="logo" style="display:none;">
+          <input class="input" type="number" name="logoSizePct" id="logoSizePct" min="10" max="40" value="22" style="width:110px" title="Logo size (%)">
+        </div>
+        <div class="help">We’ll place your logo at the center. Try 15–25% for readability.</div>
+      </div>
+
+      <button class="btn" type="submit">Create QR</button>
+    </form>
+
+    <!-- RIGHT: live preview -->
+    <div class="preview-card">
+      <h2>Live Preview</h2>
+      <div class="preview-box">
+        <img id="previewImg" alt="QR preview" />
+      </div>
+      <div class="help">This is a visual preview. The encoded data shown here is a placeholder.</div>
+    </div>
+  </div>
+</main>
+
+<script>
+  // dropdowns
+  function toggleProfileMenu(){ const dd=document.getElementById('profileDropdown'); dd.style.display=dd.style.display==='block'?'none':'block'; }
+  function toggleQRCodeMenu(){ const dd=document.getElementById('QRCodeDropdown'); dd.style.display=dd.style.display==='block'?'none':'block'; }
+  document.addEventListener('click', (e) => {
+    ['profile','QRCode'].forEach(k=>{
+      const menu=document.getElementById(k+'Dropdown');
+      const btn=document.querySelector('.'+k+'-menu button');
+      if(menu && btn && !menu.contains(e.target) && !btn.contains(e.target)) menu.style.display='none';
+    });
+  });
+
+  // messages
+  const params = new URLSearchParams(location.search);
+  const msgEl = document.getElementById('form-msg');
+  if (params.get('error')) { msgEl.className='error'; msgEl.textContent=params.get('error'); }
+
+  // live preview (GET /qr/preview?params)
+  function refreshPreview() {
+    const fg = document.querySelector('[name="fg"]').value;
+    const bg = document.querySelector('[name="bg"]').value;
+    const ec = document.querySelector('[name="ec"]').value;
+    const logoUrl = document.getElementById('logoUrl').value || '';
+    const logoSizePct = document.getElementById('logoSizePct').value || '22';
+
+    const qs = new URLSearchParams({ fg, bg, ec, logoUrl, logoSizePct });
+    document.getElementById('previewImg').src = '/qr/preview?' + qs.toString();
+  }
+  ['fg','bg','ec','logoSizePct'].forEach(name => {
+    document.querySelector(`[name="${name}"]`).addEventListener('change', refreshPreview);
+  });
+
+  // logo upload
+  document.getElementById('logoInput').addEventListener('change', async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const fd = new FormData();
+    fd.set('file', f);
+    const res = await fetch('/uploads', { method: 'POST', body: fd, credentials: 'include' });
+    if (!res.ok) { alert('Upload failed'); return; }
+    const data = await res.json();
+    document.getElementById('logoUrl').value = data.url;
+    const thumb = document.getElementById('logoThumb');
+    thumb.src = data.url;
+    thumb.style.display = 'block';
+    refreshPreview();
+  });
+
+  // first render
+  refreshPreview();
+</script>
+
+</body>
+</html>

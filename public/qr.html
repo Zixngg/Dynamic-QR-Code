@@ -1,0 +1,108 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>My QR Codes • Dynamic QR Code</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/header.css">
+  <link rel="stylesheet" href="css/qr.css">
+</head>
+<body>
+<header class="header">
+  <a class="header__brand" href="/">Dynamic QR Code</a>
+  <nav class="nav">
+    <a href="/dashboard.html">Dashboard</a>
+    <div class="QRCode-menu">
+      <button type="button" onclick="toggleQRCodeMenu()">QR Code ▾</button>
+      <div class="QRCode-dropdown" id="QRCodeDropdown">
+        <a href="/generateQR.html">Generate QR Codes</a>
+        <a href="/qr.html">My QR Codes</a>
+      </div>
+    </div>
+    <div class="profile-menu">
+      <button type="button" onclick="toggleProfileMenu()">Profile ▾</button>
+      <div class="profile-dropdown" id="profileDropdown">
+        <a href="/profile.html">View Profile</a>
+        <form action="/auth/logout" method="post">
+          <button type="submit">Logout</button>
+        </form>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<main class="list">
+  <h1>My QR Codes</h1>
+  <p class="sub">Click a slug to open its dynamic redirect URL, or edit to change the destination.</p>
+
+  <div id="form-msg"></div>
+
+  <table id="tbl">
+    <thead>
+      <tr>
+        <th>Preview</th>
+        <th>Name</th>
+        <th>Slug</th>
+        <th>Created</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</main>
+
+<script>
+  // dropdown toggles
+  function toggleProfileMenu(){ const dd=document.getElementById('profileDropdown'); dd.style.display=dd.style.display==='block'?'none':'block'; }
+  function toggleQRCodeMenu(){ const dd=document.getElementById('QRCodeDropdown'); dd.style.display=dd.style.display==='block'?'none':'block'; }
+  document.addEventListener('click', (e) => {
+    ['profile','QRCode'].forEach(k=>{
+      const menu=document.getElementById(k+'Dropdown');
+      const btn=document.querySelector('.'+k+'-menu button');
+      if(menu && btn && !menu.contains(e.target) && !btn.contains(e.target)) menu.style.display='none';
+    });
+  });
+
+  // handle messages from redirects (?success= / ?error=)
+  const params = new URLSearchParams(location.search);
+  const msgEl = document.getElementById('form-msg');
+  if (params.get('error')) {
+    msgEl.className='error';
+    msgEl.textContent=params.get('error');
+  }
+  if (params.get('success')) {
+    msgEl.className='success';
+    msgEl.textContent=params.get('success');
+  }
+
+  // fetch and render table
+  (async function(){
+    const me = await fetch('/api/me', { credentials:'include' });
+    if (me.status===401) {
+      location.href='/login.html?error=Session+expired';
+      return;
+    }
+
+    const r = await fetch('/api/my/qr', { credentials:'include' });
+    if (!r.ok) return;
+    const rows = await r.json();
+    const tb = document.querySelector('#tbl tbody');
+    tb.innerHTML = '';
+
+    for (const x of rows) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><img src="/qr/${encodeURIComponent(x.Slug)}.svg" alt="qr"></td>
+        <td>${x.Name}</td>
+        <td>
+          <a class="link" href="/r/${encodeURIComponent(x.Slug)}" target="_blank">${x.Slug}</a>
+          &nbsp;•&nbsp;
+          <a class="link" href="/editQR.html?slug=${encodeURIComponent(x.Slug)}">Edit</a>
+        </td>
+        <td>${new Date(x.CreatedAt).toLocaleString()}</td>
+      `;
+      tb.appendChild(tr);
+    }
+  })();
+</script>
+</body>
+</html>

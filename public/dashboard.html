@@ -1,0 +1,97 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Dashboard • Dynamic QR Code</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/header.css">
+</head>
+<script>
+  function toggleProfileMenu() {
+    const dd = document.getElementById('profileDropdown');
+    dd.style.display = dd.style.display === 'block' ? 'none' : 'block';
+  }
+
+  function toggleQRCodeMenu() {
+    const dd = document.getElementById('QRCodeDropdown');
+    dd.style.display = dd.style.display === 'block' ? 'none' : 'block';
+  }
+
+  // close menus if clicked outside
+  document.addEventListener('click', (e) => {
+    const profileMenu = document.getElementById('profileDropdown');
+    const qrMenu = document.getElementById('QRCodeDropdown');
+    const profileBtn = document.querySelector('.profile-menu button');
+    const qrBtn = document.querySelector('.QRCode-menu button');
+
+    if (!profileMenu.contains(e.target) && !profileBtn.contains(e.target)) {
+      profileMenu.style.display = 'none';
+    }
+    if (!qrMenu.contains(e.target) && !qrBtn.contains(e.target)) {
+      qrMenu.style.display = 'none';
+    }
+  });
+</script>
+<body>
+  <header class="header">
+    <a class="header__brand" href="/">Dynamic QR Code</a>
+    <nav class="nav">
+      <a href="/dashboard.html">Dashboard</a>
+      <div class="QRCode-menu">
+        <button type="button" onclick="toggleQRCodeMenu()">QR Code ▾</button>
+        <div class="QRCode-dropdown" id="QRCodeDropdown">
+          <a href="/generateQR.html">Generate QR Codes</a>
+          <a href="/qr.html">My QR Codes</a>
+        </div>
+      </div>
+      <div class="profile-menu">
+        <button type="button" onclick="toggleProfileMenu()">Profile ▾</button>
+        <div class="profile-dropdown" id="profileDropdown">
+          <a href="/profile.html">View Profile</a>
+          <form action="/auth/logout" method="post">
+            <button type="submit">Logout</button>
+          </form>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <main class="dashboard-wrap">
+    <div class="toolbar">
+      <div id="greeting" style="font-weight:600;"></div>
+    </div>
+
+    <div class="dashboard-grid">
+      <div class="kpi">
+        <h2>Total scans (today)</h2>
+        <div class="num" id="kpi-today">—</div>
+      </div>
+      <div class="kpi">
+        <h2>Total scans (30d)</h2>
+        <div class="num" id="kpi-30d">—</div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    function toggleProfileMenu() {
+      const dd = document.getElementById('profileDropdown');
+      dd.style.display = dd.style.display === 'block' ? 'none' : 'block';
+    }
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('profileDropdown');
+      const btn = document.querySelector('.profile-menu button');
+      if (!menu.contains(e.target) && !btn.contains(e.target)) {
+        menu.style.display = 'none';
+      }
+    });
+
+    (async function(){
+      const r = await fetch('/api/me', { credentials: 'include' });
+      if (r.status === 401) { location.href = '/login.html?error=Session+expired'; return; }
+      const me = await r.json();
+      document.getElementById('greeting').textContent = `Hello, ${me.email}`;
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+{
+  "name": "dynamic-qr-code",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/formbody": "^8.0.2",
+    "@fastify/multipart": "^9.2.1",
+    "@fastify/static": "^8.2.0",
+    "argon2": "^0.44.0",
+    "dotenv": "^17.2.2",
+    "fastify": "^5.6.0",
+    "jsonwebtoken": "^9.0.2",
+    "mssql": "^11.0.1",
+    "qrcode": "^1.5.4",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/mssql": "^9.1.8",
+    "@types/node": "^24.3.1",
+    "@types/qrcode": "^1.5.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  }
+}
