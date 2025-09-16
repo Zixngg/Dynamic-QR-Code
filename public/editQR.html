@@ -36,11 +36,11 @@
 </header>
 
 <main class="container">
-  <form class="card wide" id="f" method="post">
+  <form class="card wide" id="f" method="post" enctype="application/x-www-form-urlencoded">
     <h1>Edit QR</h1>
-    <p class="sub">Retarget the destination — the QR image stays the same.</p>
-
+    <!-- ✅ single form-msg -->
     <div id="form-msg"></div>
+    <p class="sub">Retarget the destination — the QR image stays the same.</p>
 
     <div class="qr-line">
       <img id="qrImg" alt="QR">
@@ -108,21 +108,51 @@
       img.src = '/qr/'+encodeURIComponent(slug)+'.svg';
       dl.href = img.src; dl.download = slug+'.svg';
       dyn.href = '/r/'+encodeURIComponent(slug);
+
+      // ✅ show success/error if redirected with ?success or ?error
+      if (params.get('success')) {
+        msgEl.className='success';
+        msgEl.textContent=params.get('success');
+      }
+      if (params.get('error')) {
+        msgEl.className='error';
+        msgEl.textContent=params.get('error');
+      }
     })();
   }
 
   // submit retarget
-  document.getElementById('f').addEventListener('submit', async (e)=>{
+  document.getElementById('f').addEventListener('submit', async (e) => {
     e.preventDefault();
+
+    msgEl.className = '';
+    msgEl.textContent = '';
+
     const fd = new FormData(e.target);
-    const r = await fetch('/qr/'+encodeURIComponent(slug)+'/retarget', {
+    const urlParams = new URLSearchParams();
+    for (const [key, value] of fd.entries()) {
+      urlParams.append(key, value.toString());
+    }
+
+    const r = await fetch('/qr/' + encodeURIComponent(slug) + '/retarget', {
       method: 'POST',
-      body: fd,
+      body: urlParams,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       credentials: 'include'
     });
-    if (r.redirected) { location.href = r.url; return; }
-    if (r.ok) { msgEl.className='success'; msgEl.textContent='Target updated'; }
-    else { msgEl.className='error'; msgEl.textContent='Failed to update'; }
+
+    if (r.redirected) {
+      location.href = r.url;
+      return;
+    }
+
+    if (r.ok) {
+      msgEl.className = 'success';
+      msgEl.textContent = 'Target updated successfully';
+    } else {
+      msgEl.className = 'error';
+      msgEl.textContent = 'Failed to update target';
+    }
   });
 </script>
 </body>

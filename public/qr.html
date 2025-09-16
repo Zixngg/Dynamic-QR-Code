@@ -97,6 +97,10 @@
           <a class="link" href="/r/${encodeURIComponent(x.Slug)}" target="_blank">${x.Slug}</a>
           &nbsp;•&nbsp;
           <a class="link" href="/editQR.html?slug=${encodeURIComponent(x.Slug)}">Edit</a>
+          &nbsp;•&nbsp;
+          <form method="post" action="/qr/${encodeURIComponent(x.Slug)}/delete" style="display:inline;" onsubmit="return confirm('Delete this QR code?');">
+            <button type="submit" class="link danger">Delete</button>
+          </form>
         </td>
         <td>${new Date(x.CreatedAt).toLocaleString()}</td>
       `;
