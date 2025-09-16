@@ -3,6 +3,9 @@ import QRCode from 'qrcode';
 import { getPool, SQL } from '../db';
 import { verifyAccess } from '../lib/jwt';
 import type { AccessPayload } from '../lib/jwt';
+// Zehua
+import useragent from 'useragent';
+import geoip from 'geoip-lite';
 
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || 'http://localhost:8080';
 
@@ -233,18 +236,81 @@ export default async function qrRoutes(app: FastifyInstance) {
   });
 
   // ---------- Redirect ----------
-  app.get('/r/:slug', async (req, reply) => {
+  // app.get('/r/:slug', async (req, reply) => {
+  //   const { slug } = req.params as any;
+  //   const pool = await getPool();
+  //   const q = await pool.request()
+  //     .input('slug', SQL.NVarChar(64), slug)
+  //     .query(`
+  //       SELECT TOP 1 t.Url
+  //       FROM dbo.[QR_Code] q
+  //       JOIN dbo.[QR_Target] t ON t.Id = q.CurrentTargetId
+  //       WHERE q.Slug = @slug
+  //     `);
+  //   if (!q.recordset.length) return reply.code(404).send('Not found');
+  //   return reply.redirect(q.recordset[0].Url);
+  // });
+
+  //Zehua
+  // ---------- Redirect and log scan ----------
+  app.get<{ Querystring: { utm?: string } }>('/r/:slug', async (req, reply) => {
     const { slug } = req.params as any;
+    const { utm } = req.query;
     const pool = await getPool();
+
+    // Get QR code and current target
     const q = await pool.request()
       .input('slug', SQL.NVarChar(64), slug)
       .query(`
-        SELECT TOP 1 t.Url
+        SELECT TOP 1 q.Id AS QR_Code_Id, t.Id AS Target_Id, t.Url
         FROM dbo.[QR_Code] q
         JOIN dbo.[QR_Target] t ON t.Id = q.CurrentTargetId
         WHERE q.Slug = @slug
       `);
+
     if (!q.recordset.length) return reply.code(404).send('Not found');
-    return reply.redirect(q.recordset[0].Url);
+
+    const { QR_Code_Id, Target_Id, Url } = q.recordset[0];
+
+    // Gather scan info
+    const ip = (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim();
+    const uaRaw = req.headers['user-agent'] || '';
+    const agent = useragent.parse(uaRaw);
+    const geo = geoip.lookup(ip) || {};
+
+    // Insert scan asynchronously (don’t block redirect)
+    pool.request()
+      .input('QR_Code_Id', SQL.UniqueIdentifier, QR_Code_Id)
+      .input('Target_Id', SQL.UniqueIdentifier, Target_Id)
+      .input('OccurredAt', SQL.DateTime2, new Date())
+      .input('IP', SQL.NVarChar(45), ip)
+      .input('Country', SQL.NVarChar(5), geo.country || null)
+      .input('Region', SQL.NVarChar(100), geo.region || null)
+      .input('City', SQL.NVarChar(100), geo.city || null)
+      .input('Lat', SQL.Float, geo.ll ? geo.ll[0] : null)
+      .input('Lon', SQL.Float, geo.ll ? geo.ll[1] : null)
+      .input('UA_Raw', SQL.NVarChar(SQL.MAX), uaRaw)
+      .input('UA_Hints', SQL.NVarChar(SQL.MAX), JSON.stringify({
+        device: agent.device.toString(),
+        os: agent.os.toString(),
+        browser: agent.toAgent()
+      }))
+      .input('DeviceType', SQL.NVarChar(50), agent.device.toString())
+      .input('OS', SQL.NVarChar(50), agent.os.toString())
+      .input('Browser', SQL.NVarChar(50), agent.toAgent())
+      .input('Lang', SQL.NVarChar(SQL.MAX), req.headers['accept-language'] || null)
+      .input('Referer', SQL.NVarChar(SQL.MAX), req.headers['referer'] || null)
+      .input('UTM', SQL.NVarChar(SQL.MAX), req.query.utm || null)
+      .input('Is_Prefetch', SQL.Bit, req.headers['x-moz'] === 'prefetch' || req.headers['purpose'] === 'prefetch' ? 1 : 0)
+      .query(`
+        INSERT INTO dbo.[QR_Scan]
+        (QR_Code_Id, Target_Id, OccurredAt, IP, Country, Region, City, Lat, Lon, UA_Raw, UA_Hints, DeviceType, OS, Browser, Lang, Referer, UTM, Is_Prefetch)
+        VALUES
+        (@QR_Code_Id, @Target_Id, @OccurredAt, @IP, @Country, @Region, @City, @Lat, @Lon, @UA_Raw, @UA_Hints, @DeviceType, @OS, @Browser, @Lang, @Referer, @UTM, @Is_Prefetch)
+      `).catch(console.error); // log errors but don’t block redirect
+
+    // Redirect immediately
+    return reply.redirect(Url);
   });
+
 }
