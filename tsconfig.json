@@ -8,6 +8,7 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "outDir": "dist",
+    //Zehua
     "rootDir": "src"
   },
   "include": ["src"]
