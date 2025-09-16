@@ -55,10 +55,8 @@ async function start() {
 
   const port = Number(process.env.PORT || 8080);
   try {
-    // await app.listen({ port });
-    // app.log.info(`API running at http://localhost:${port}`);
-    await app.listen({ port, host: '0.0.0.0' });
-    app.log.info(`API running at port ${port}`);
+    await app.listen({ port });
+    app.log.info(`API running at http://localhost:${port}`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);
