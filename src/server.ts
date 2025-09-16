@@ -1,4 +1,4 @@
-import 'dotenv/config'; // 👈 load .env first
+import 'dotenv/config'; // load .env first
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
@@ -12,22 +12,29 @@ import qrRoutes from './routes/qr';
 async function start() {
   const app = Fastify({ logger: true });
 
+  // cookies
   await app.register(cookie, {
     hook: 'onRequest',
     parseOptions: { httpOnly: true, sameSite: 'lax' }
   });
+
+  // parse form bodies (x-www-form-urlencoded)
   await app.register(formBody);
+
+  // multipart for logo uploads (limit ~500 KB)
   await app.register(multipart, { limits: { fileSize: 500_000 } });
 
-  // Serve static files (html, css, uploads, etc.)
+  // serve static files (html, css, uploads, etc.)
   await app.register(fastifyStatic, {
     root: path.join(process.cwd(), 'public'),
     prefix: '/',
     decorateReply: false,
   });
 
+  // health check
   app.get('/health', async () => ({ ok: true }));
 
+  // who am I
   app.get('/api/me', async (req, reply) => {
     const at = (req.cookies as any)?.at as string | undefined;
     if (!at) return reply.code(401).send({ error: 'unauthorized' });
@@ -39,9 +46,11 @@ async function start() {
     }
   });
 
+  // register routes
   await authRoutes(app);
   await qrRoutes(app);
 
+  // default redirect to login
   app.get('/', async (_req, reply) => reply.redirect('/login.html'));
 
   const port = Number(process.env.PORT || 8080);
