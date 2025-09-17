@@ -53,7 +53,69 @@ export default async function qrRoutes(app: FastifyInstance) {
     reply.send(r.recordset);
   });
 
-  // ---------- Create QR ----------
+  // ---------- Create QR ---------- 
+  // app.post('/qr/create', async (req, reply) => {
+  //   let user: AccessPayload;
+  //   try { user = getUserOrThrow(req); }
+  //   catch { return reply.redirect('/login.html?error=Please+log+in'); }
+
+  //   const body = req.body as any;
+  //   const pool = await getPool();
+
+  //   try {
+  //     const name = String(body.name || '').trim();
+  //     const url = normalizeUrl(String(body.url || ''));
+
+  //     const slug = Math.random().toString(36).substring(2, 9);
+
+  //     // default design object
+  //     const design = JSON.stringify({
+  //       fg: '#0b3d91',
+  //       bg: '#ffffff',
+  //       ec: 'M',
+  //       format: 'svg',
+  //       logoUrl: null,
+  //       logoSizePct: 22
+  //     });
+
+  //     // insert QR code with design
+  //     const qrIns = await pool.request()
+  //       .input('uid', SQL.UniqueIdentifier, user.sub)
+  //       .input('name', SQL.NVarChar(200), name)
+  //       .input('slug', SQL.NVarChar(64), slug)
+  //       .input('design', SQL.NVarChar(SQL.MAX), design)
+  //       .query(`
+  //         INSERT INTO dbo.[QR_Code] (User_Id, Name, Slug, Design)
+  //         OUTPUT inserted.Id
+  //         VALUES (@uid, @name, @slug, @design);
+  //       `);
+
+  //     const qrId = qrIns.recordset[0].Id as string;
+
+  //     // create first target
+  //     const trgIns = await pool.request()
+  //       .input('qid', SQL.UniqueIdentifier, qrId)
+  //       .input('url', SQL.NVarChar(2048), url)
+  //       .input('ver', SQL.Int, 1)
+  //       .query(`
+  //         INSERT INTO dbo.[QR_Target] (QR_Code_Id, Url, [Version])
+  //         OUTPUT inserted.Id
+  //         VALUES (@qid, @url, @ver);
+  //       `);
+
+  //     const targetId = trgIns.recordset[0].Id as string;
+
+  //     await pool.request()
+  //       .input('tid', SQL.UniqueIdentifier, targetId)
+  //       .input('qid', SQL.UniqueIdentifier, qrId)
+  //       .query('UPDATE dbo.[QR_Code] SET CurrentTargetId=@tid WHERE Id=@qid;');
+
+  //     return reply.redirect(`/qr.html?success=QR+created&slug=${encodeURIComponent(slug)}`);
+  //   } catch (e: any) {
+  //     return reply.redirect(`/generateQR.html?error=${encodeURIComponent(e.message || 'Failed to create')}`);
+  //   }
+  // });
+  //Zehua
   app.post('/qr/create', async (req, reply) => {
     let user: AccessPayload;
     try { user = getUserOrThrow(req); }
@@ -65,6 +127,18 @@ export default async function qrRoutes(app: FastifyInstance) {
     try {
       const name = String(body.name || '').trim();
       const url = normalizeUrl(String(body.url || ''));
+
+      // Extract UTM parameters from the request body
+      const utmSource = String(body.utm_source || '').trim();
+      const utmMedium = String(body.utm_medium || '').trim();
+      const utmCampaign = String(body.utm_campaign || '').trim();
+
+      // Combine UTM parameters into a single JSON string for the UTM column
+      const utmData = JSON.stringify({
+        source: utmSource || null,
+        medium: utmMedium || null,
+        campaign: utmCampaign || null
+      });
 
       const slug = Math.random().toString(36).substring(2, 9);
 
@@ -92,15 +166,16 @@ export default async function qrRoutes(app: FastifyInstance) {
 
       const qrId = qrIns.recordset[0].Id as string;
 
-      // create first target
+      // create first target with UTM parameters
       const trgIns = await pool.request()
         .input('qid', SQL.UniqueIdentifier, qrId)
         .input('url', SQL.NVarChar(2048), url)
         .input('ver', SQL.Int, 1)
+        .input('utm', SQL.NVarChar(SQL.MAX), utmData)
         .query(`
-          INSERT INTO dbo.[QR_Target] (QR_Code_Id, Url, [Version])
+          INSERT INTO dbo.[QR_Target] (QR_Code_Id, Url, [Version], UTM)
           OUTPUT inserted.Id
-          VALUES (@qid, @url, @ver);
+          VALUES (@qid, @url, @ver, @utm);
         `);
 
       const targetId = trgIns.recordset[0].Id as string;
@@ -117,6 +192,54 @@ export default async function qrRoutes(app: FastifyInstance) {
   });
 
   // ---------- Retarget (update URL) ----------
+  // app.post('/qr/:slug/retarget', async (req, reply) => {
+  //   let user: AccessPayload;
+  //   try { user = getUserOrThrow(req); }
+  //   catch { return reply.redirect('/login.html?error=Please+log+in'); }
+
+  //   const { slug } = req.params as any;
+  //   const body = req.body as any;
+
+  //   try {
+  //     const url = normalizeUrl(String(body.url || ''));
+
+  //     const pool = await getPool();
+  //     const q = await pool.request()
+  //       .input('slug', SQL.NVarChar(64), slug)
+  //       .input('uid', SQL.UniqueIdentifier, user.sub)
+  //       .query('SELECT TOP 1 Id FROM dbo.[QR_Code] WHERE Slug=@slug AND User_Id=@uid;');
+
+  //     if (!q.recordset.length) return reply.redirect(`/qr.html?error=Not+found`);
+  //     const qrId = q.recordset[0].Id as string;
+
+  //     const verRes = await pool.request()
+  //       .input('qid', SQL.UniqueIdentifier, qrId)
+  //       .query('SELECT ISNULL(MAX([Version]),0) AS v FROM dbo.[QR_Target] WHERE QR_Code_Id=@qid;');
+  //     const nextVer = (verRes.recordset[0].v as number) + 1;
+
+  //     const trg = await pool.request()
+  //       .input('qid', SQL.UniqueIdentifier, qrId)
+  //       .input('url', SQL.NVarChar(2048), url)
+  //       .input('ver', SQL.Int, nextVer)
+  //       .query(`
+  //         INSERT INTO dbo.[QR_Target] (QR_Code_Id, Url, [Version])
+  //         OUTPUT inserted.Id
+  //         VALUES (@qid, @url, @ver);
+  //       `);
+
+  //     const targetId = trg.recordset[0].Id as string;
+
+  //     await pool.request()
+  //       .input('tid', SQL.UniqueIdentifier, targetId)
+  //       .input('qid', SQL.UniqueIdentifier, qrId)
+  //       .query('UPDATE dbo.[QR_Code] SET CurrentTargetId=@tid WHERE Id=@qid;');
+
+  //     return reply.redirect(`/editQR.html?slug=${encodeURIComponent(slug)}&success=Target+updated`);
+  //   } catch (e: any) {
+  //     return reply.redirect(`/editQR.html?slug=${encodeURIComponent(slug)}&error=${encodeURIComponent(e.message || 'Failed to update')}`);
+  //   }
+  // });
+  //Zehua
   app.post('/qr/:slug/retarget', async (req, reply) => {
     let user: AccessPayload;
     try { user = getUserOrThrow(req); }
@@ -127,6 +250,18 @@ export default async function qrRoutes(app: FastifyInstance) {
 
     try {
       const url = normalizeUrl(String(body.url || ''));
+      
+      // Extract UTM parameters from the request body
+      const utmSource = String(body.utm_source || '').trim();
+      const utmMedium = String(body.utm_medium || '').trim();
+      const utmCampaign = String(body.utm_campaign || '').trim();
+
+      // Combine UTM parameters into a single JSON string for the UTM column
+      const utmData = JSON.stringify({
+        source: utmSource || null,
+        medium: utmMedium || null,
+        campaign: utmCampaign || null
+      });
 
       const pool = await getPool();
       const q = await pool.request()
@@ -146,10 +281,11 @@ export default async function qrRoutes(app: FastifyInstance) {
         .input('qid', SQL.UniqueIdentifier, qrId)
         .input('url', SQL.NVarChar(2048), url)
         .input('ver', SQL.Int, nextVer)
+        .input('utm', SQL.NVarChar(SQL.MAX), utmData)
         .query(`
-          INSERT INTO dbo.[QR_Target] (QR_Code_Id, Url, [Version])
+          INSERT INTO dbo.[QR_Target] (QR_Code_Id, Url, [Version], UTM)
           OUTPUT inserted.Id
-          VALUES (@qid, @url, @ver);
+          VALUES (@qid, @url, @ver, @utm);
         `);
 
       const targetId = trg.recordset[0].Id as string;
@@ -255,14 +391,13 @@ export default async function qrRoutes(app: FastifyInstance) {
   // ---------- Redirect and log scan ----------
   app.get<{ Querystring: { utm?: string } }>('/r/:slug', async (req, reply) => {
     const { slug } = req.params as any;
-    const { utm } = req.query;
     const pool = await getPool();
 
-    // Get QR code and current target
+    // Get QR code and current target WITH UTM data
     const q = await pool.request()
       .input('slug', SQL.NVarChar(64), slug)
       .query(`
-        SELECT TOP 1 q.Id AS QR_Code_Id, t.Id AS Target_Id, t.Url
+        SELECT TOP 1 q.Id AS QR_Code_Id, t.Id AS Target_Id, t.Url, t.UTM
         FROM dbo.[QR_Code] q
         JOIN dbo.[QR_Target] t ON t.Id = q.CurrentTargetId
         WHERE q.Slug = @slug
@@ -270,7 +405,7 @@ export default async function qrRoutes(app: FastifyInstance) {
 
     if (!q.recordset.length) return reply.code(404).send('Not found');
 
-    const { QR_Code_Id, Target_Id, Url } = q.recordset[0];
+    const { QR_Code_Id, Target_Id, Url, UTM } = q.recordset[0];
 
     // Gather scan info
     const ip = (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim();
@@ -278,7 +413,8 @@ export default async function qrRoutes(app: FastifyInstance) {
     const agent = useragent.parse(uaRaw);
     const geo = geoip.lookup(ip) || {};
 
-    // Insert scan asynchronously (don’t block redirect)
+    // Insert scan asynchronously (don't block redirect)
+    // Use UTM data from the QR_Target table instead of query string
     pool.request()
       .input('QR_Code_Id', SQL.UniqueIdentifier, QR_Code_Id)
       .input('Target_Id', SQL.UniqueIdentifier, Target_Id)
@@ -300,14 +436,14 @@ export default async function qrRoutes(app: FastifyInstance) {
       .input('Browser', SQL.NVarChar(50), agent.toAgent())
       .input('Lang', SQL.NVarChar(SQL.MAX), req.headers['accept-language'] || null)
       .input('Referer', SQL.NVarChar(SQL.MAX), req.headers['referer'] || null)
-      .input('UTM', SQL.NVarChar(SQL.MAX), req.query.utm || null)
+      .input('UTM', SQL.NVarChar(SQL.MAX), UTM || null)  // Use UTM from QR_Target table
       .input('Is_Prefetch', SQL.Bit, req.headers['x-moz'] === 'prefetch' || req.headers['purpose'] === 'prefetch' ? 1 : 0)
       .query(`
         INSERT INTO dbo.[QR_Scan]
         (QR_Code_Id, Target_Id, OccurredAt, IP, Country, Region, City, Lat, Lon, UA_Raw, UA_Hints, DeviceType, OS, Browser, Lang, Referer, UTM, Is_Prefetch)
         VALUES
         (@QR_Code_Id, @Target_Id, @OccurredAt, @IP, @Country, @Region, @City, @Lat, @Lon, @UA_Raw, @UA_Hints, @DeviceType, @OS, @Browser, @Lang, @Referer, @UTM, @Is_Prefetch)
-      `).catch(console.error); // log errors but don’t block redirect
+      `).catch(console.error); // log errors but don't block redirect
 
     // Redirect immediately
     return reply.redirect(Url);
