@@ -61,7 +61,10 @@
       <div id="greeting" style="font-weight:600;"></div>
     </div>
 
-    <div class="dashboard-grid">
+    <iframe id="chart-today" width="100%" height="300" frameborder="0"></iframe>
+    <iframe id="chart-30d" width="100%" height="400" frameborder="0"></iframe>
+
+    <!-- <div class="dashboard-grid">
       <div class="kpi">
         <h2>Total scans (today)</h2>
         <div class="num" id="kpi-today">—</div>
@@ -70,10 +73,31 @@
         <h2>Total scans (30d)</h2>
         <div class="num" id="kpi-30d">—</div>
       </div>
-    </div>
+    </div> -->
+
   </main>
 
   <script>
+    (async function() {
+      // get current logged-in user
+      const r = await fetch('/api/me', { credentials: 'include' });
+      if (r.status === 401) {
+        location.href = '/login.html?error=Session+expired';
+        return;
+      }
+      const me = await r.json();
+
+      // inject userId into Grafana iframe URLs
+      const todayIframe = document.getElementById('chart-today');
+      todayIframe.src = `http://analytics.sg-akc.com/d-solo/bc26ffb9-588c-4033-a77b-5a10af9df52d/dynamic-qr-code?orgId=1&from=now-1d&to=now&timezone=browser&panelId=1&var-userId=${me.id}`;
+
+      const monthIframe = document.getElementById('chart-30d');
+      monthIframe.src = `http://analytics.sg-akc.com/d-solo/bc26ffb9-588c-4033-a77b-5a10af9df52d/dynamic-qr-code?orgId=1&from=now-30d&to=now&timezone=browser&panelId=2&var-userId=${me.id}`;
+
+        // greeting
+        document.getElementById('greeting').textContent = `Hello, ${me.email}`;
+      })();
+  
     function toggleProfileMenu() {
       const dd = document.getElementById('profileDropdown');
       dd.style.display = dd.style.display === 'block' ? 'none' : 'block';
