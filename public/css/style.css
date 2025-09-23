@@ -86,3 +86,75 @@ html,body{
 .success{
   margin:0 0 10px 0; color:#0a7d34; font-size:14px; font-weight:500;
 }
+
+.chart-row {
+  display: flex;
+  gap: 16px;       /* space between iframes */
+}
+
+.chart-row iframe {
+  flex: 1;         /* each takes half the row */
+}
+
+.date-filter-section {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.date-input-container {
+  position: relative;
+  max-width: 280px;
+}
+
+.date-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  transition: all 0.15s ease;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+}
+
+.date-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(11, 61, 145, 0.1);
+  background: var(--card);
+}
+
+.date-input::placeholder {
+  color: var(--muted);
+}
+
+.chart-container {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+
+.chart-container iframe {
+  display: block;
+  border: none;
+}

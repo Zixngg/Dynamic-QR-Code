@@ -17,7 +17,6 @@
     dd.style.display = dd.style.display === 'block' ? 'none' : 'block';
   }
 
-  // close menus if clicked outside
   document.addEventListener('click', (e) => {
     const profileMenu = document.getElementById('profileDropdown');
     const qrMenu = document.getElementById('QRCodeDropdown');
@@ -61,8 +60,31 @@
       <div id="greeting" style="font-weight:600;"></div>
     </div>
 
-    <iframe id="chart-today" width="100%" height="300" frameborder="0"></iframe>
-    <iframe id="chart-30d" width="100%" height="400" frameborder="0"></iframe>
+    <div class="chart-container">
+      <div class="chart-row">
+        <iframe id="chart-today" width="100%" height="300" frameborder="0"></iframe>
+        <iframe id="chart-today-per-qr" width="100%" height="300" frameborder="0"></iframe>
+      </div>
+    </div>
+
+    <div class="chart-container">
+      <iframe id="chart-30d" width="100%" height="400" frameborder="0"></iframe>
+    </div>
+
+    <div class="date-filter-section">
+      <div class="section-header">
+        <h3 class="section-title">Date Filter (Previous 30 days)</h3>
+      </div>
+      <div class="date-input-container">
+        <input list="dates" id="scanDate" class="date-input" placeholder="Choose date for analysis">
+        <datalist id="dates"></datalist>
+      </div>
+    </div>
+
+  <div class="chart-container">
+    <iframe id="chart-custom" width="100%" height="400" frameborder="0"></iframe>
+  </div>
+    
 
     <!-- <div class="dashboard-grid">
       <div class="kpi">
@@ -91,12 +113,51 @@
       const todayIframe = document.getElementById('chart-today');
       todayIframe.src = `http://analytics.sg-akc.com/d-solo/bc26ffb9-588c-4033-a77b-5a10af9df52d/dynamic-qr-code?orgId=1&from=now-1d&to=now&timezone=browser&panelId=1&var-userId=${me.id}`;
 
+      const todayPerQrIframe = document.getElementById('chart-today-per-qr');
+      todayPerQrIframe.src = `http://analytics.sg-akc.com/d-solo/bc26ffb9-588c-4033-a77b-5a10af9df52d/dynamic-qr-code?orgId=1&from=now-1d&to=now&timezone=browser&panelId=3&var-userId=${me.id}`;
+
       const monthIframe = document.getElementById('chart-30d');
       monthIframe.src = `http://analytics.sg-akc.com/d-solo/bc26ffb9-588c-4033-a77b-5a10af9df52d/dynamic-qr-code?orgId=1&from=now-30d&to=now&timezone=browser&panelId=2&var-userId=${me.id}`;
 
-        // greeting
-        document.getElementById('greeting').textContent = `Hello, ${me.email}`;
-      })();
+      // Filterable chart
+      const input = document.getElementById('scanDate');
+      const datalist = document.getElementById('dates');
+      const chart = document.getElementById('chart-custom');
+
+      // generate last 30 days
+      const today = new Date();
+      for (let i=0; i<30; i++){
+        const d = new Date(today); d.setDate(today.getDate()-i);
+        const formatted = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+        const opt = document.createElement('option'); opt.value = formatted; datalist.appendChild(opt);
+      }
+      
+      // default = first day of month
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      const firstDayFormatted = `${firstDay.getFullYear()}-${String(firstDay.getMonth()+1).padStart(2,"0")}-01`;
+      input.value = firstDayFormatted;
+
+      function updateChart(date) {
+      // Convert the selected date to start and end of day timestamps
+      const selectedDate = new Date(date);
+      const startOfDay = new Date(selectedDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(selectedDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      
+      // Convert to milliseconds (Grafana timestamp format)
+      const fromTimestamp = startOfDay.getTime();
+      const toTimestamp = endOfDay.getTime();
+    
+      // Update the chart URL with dynamic values
+      chart.src = `http://analytics.sg-akc.com/d-solo/bc26ffb9-588c-4033-a77b-5a10af9df52d/dynamic-qr-code?orgId=1&from=${fromTimestamp}&to=${toTimestamp}&timezone=browser&var-userId=${me.id}&var-scanDate=${date}&panelId=4&__feature.dashboardSceneSolo=true`;
+    }
+
+    updateChart(firstDayFormatted);
+    input.addEventListener('change', ()=> updateChart(input.value));
+      // greeting
+      document.getElementById('greeting').textContent = `Hello, ${me.email}`;
+    })();
   
     function toggleProfileMenu() {
       const dd = document.getElementById('profileDropdown');
