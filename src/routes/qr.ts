@@ -35,17 +35,24 @@ function injectLogoIntoSvg(
   borderColor = '#000000'
 ): string {
   // Determine canvas size from SVG attributes (width/height or viewBox)
-  let size = 512;
+  let canvasSize = 512;
+  let viewBoxSize = 29; // Default QR code viewBox size
+  
   const whMatch = svg.match(/<svg[^>]*\bwidth=\"(\d+)\"[^>]*\bheight=\"(\d+)\"/i);
   const vbMatch = svg.match(/viewBox=\"\s*0\s+0\s+(\d+)\s+(\d+)\s*\"/i);
+  
   if (whMatch) {
-    size = Math.min(parseInt(whMatch[1], 10) || 512, parseInt(whMatch[2], 10) || 512);
-  } else if (vbMatch) {
-    size = Math.min(parseInt(vbMatch[1], 10) || 512, parseInt(vbMatch[2], 10) || 512);
+    canvasSize = Math.min(parseInt(whMatch[1], 10) || 512, parseInt(whMatch[2], 10) || 512);
   }
-  const logoSize = Math.round((sizePct / 100) * size);
-  const x = Math.round((size - logoSize) / 2);
-  const y = Math.round((size - logoSize) / 2);
+  
+  if (vbMatch) {
+    viewBoxSize = Math.min(parseInt(vbMatch[1], 10) || 29, parseInt(vbMatch[2], 10) || 29);
+  }
+  
+  // Calculate logo size and position in viewBox coordinates
+  const logoSizeInViewBox = (sizePct / 100) * viewBoxSize;
+  const x = (viewBoxSize - logoSizeInViewBox) / 2;
+  const y = (viewBoxSize - logoSizeInViewBox) / 2;
 
   // Ensure xlink namespace exists for broader browser support
   if (!/xmlns:xlink=/i.test(svg)) {
@@ -55,17 +62,17 @@ function injectLogoIntoSvg(
     );
   }
 
-  const debugRect = debug ? `<rect x="${x}" y="${y}" width="${logoSize}" height="${logoSize}" fill="none" stroke="red" stroke-width="4" />` : '';
-  const debugText = debug ? `<text x="8" y="24" fill="red" font-size="18">logoSize=${logoSize} x=${x} y=${y}</text>` : '';
+  const debugRect = debug ? `<rect x="${x}" y="${y}" width="${logoSizeInViewBox}" height="${logoSizeInViewBox}" fill="none" stroke="red" stroke-width="0.1" />` : '';
+  const debugText = debug ? `<text x="1" y="2" fill="red" font-size="1">logoSize=${logoSizeInViewBox.toFixed(2)} x=${x.toFixed(2)} y=${y.toFixed(2)}</text>` : '';
   // Knockout rectangle to improve contrast (expand slightly beyond logo)
-  const pad = Math.max(2, Math.round(logoSize * 0.06));
+  const pad = Math.max(0.1, logoSizeInViewBox * 0.06);
   const kx = Math.max(0, x - pad);
   const ky = Math.max(0, y - pad);
-  const kw = Math.min(size, logoSize + pad * 2);
-  const kh = Math.min(size, logoSize + pad * 2);
-  const knockout = `<rect x="${kx}" y="${ky}" width="${kw}" height="${kh}" rx="${Math.round(pad)}" ry="${Math.round(pad)}" fill="${backgroundColor}" />`;
-  const imageTag = `<image href="${logoUrl}" x="${x}" y="${y}" width="${logoSize}" height="${logoSize}" preserveAspectRatio="xMidYMid meet" />`;
-  const borderRect = `<rect x="${kx}" y="${ky}" width="${kw}" height="${kh}" rx="${Math.round(pad)}" ry="${Math.round(pad)}" fill="none" stroke="${borderColor}" stroke-width="2" />`;
+  const kw = Math.min(viewBoxSize, logoSizeInViewBox + pad * 2);
+  const kh = Math.min(viewBoxSize, logoSizeInViewBox + pad * 2);
+  const knockout = `<rect x="${kx}" y="${ky}" width="${kw}" height="${kh}" rx="${pad}" ry="${pad}" fill="${backgroundColor}" />`;
+  const imageTag = `<image href="${logoUrl}" x="${x}" y="${y}" width="${logoSizeInViewBox}" height="${logoSizeInViewBox}" preserveAspectRatio="xMidYMid meet" />`;
+  const borderRect = `<rect x="${kx}" y="${ky}" width="${kw}" height="${kh}" rx="${pad}" ry="${pad}" fill="none" stroke="${borderColor}" stroke-width="0.1" />`;
   return svg.replace('</svg>', `${debugRect}${debugText}${knockout}${imageTag}${borderRect}</svg>`);
 }
 
