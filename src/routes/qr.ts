@@ -33,6 +33,36 @@ function injectLogoIntoSvg(svg: string, logoUrl: string, sizePct = 22): string {
   return svg.replace('</svg>', `${imageTag}</svg>`);
 }
 
+function getSingaporeRegion(lat: number, lon: number): string | null {
+  // Central Region (roughly 1.27-1.31 lat, 103.82-103.88 lon)
+  if (lat >= 1.27 && lat <= 1.31 && lon >= 103.82 && lon <= 103.88) {
+    return 'Central';
+  }
+  
+  // North Region (roughly 1.38-1.45 lat, 103.74-103.85 lon)
+  if (lat >= 1.38 && lat <= 1.45 && lon >= 103.74 && lon <= 103.85) {
+    return 'North';
+  }
+  
+  // North-East Region (roughly 1.32-1.42 lat, 103.87-103.96 lon)
+  if (lat >= 1.32 && lat <= 1.42 && lon >= 103.87 && lon <= 103.96) {
+    return 'North-East';
+  }
+  
+  // East Region (roughly 1.31-1.37 lat, 103.88-103.99 lon)
+  if (lat >= 1.31 && lat <= 1.37 && lon >= 103.88 && lon <= 103.99) {
+    return 'East';
+  }
+  
+  // West Region (roughly 1.30-1.39 lat, 103.68-103.78 lon)
+  if (lat >= 1.30 && lat <= 1.39 && lon >= 103.68 && lon <= 103.78) {
+    return 'West';
+  }
+  
+  // Default fallback if coordinates don't match any region
+  return 'Singapore';
+}
+
 export default async function qrRoutes(app: FastifyInstance) {
   // ---------- List my QR codes ----------
   app.get('/api/my/qr', async (req, reply) => {
@@ -390,22 +420,22 @@ export default async function qrRoutes(app: FastifyInstance) {
   //Zehua
   // ---------- Redirect and log scan ----------
   app.get<{ Querystring: { utm?: string } }>('/r/:slug', async (req, reply) => {
-    const { slug } = req.params as any;
-    const pool = await getPool();
+  const { slug } = req.params as any;
+  const pool = await getPool();
 
-    // Get QR code and current target WITH UTM data
-    const q = await pool.request()
-      .input('slug', SQL.NVarChar(64), slug)
-      .query(`
-        SELECT TOP 1 q.Id AS QR_Code_Id, t.Id AS Target_Id, t.Url, t.UTM
-        FROM dbo.[QR_Code] q
-        JOIN dbo.[QR_Target] t ON t.Id = q.CurrentTargetId
-        WHERE q.Slug = @slug
-      `);
+  // Get QR code and current target WITH UTM data
+  const q = await pool.request()
+    .input('slug', SQL.NVarChar(64), slug)
+    .query(`
+      SELECT TOP 1 q.Id AS QR_Code_Id, t.Id AS Target_Id, t.Url, t.UTM
+      FROM dbo.[QR_Code] q
+      JOIN dbo.[QR_Target] t ON t.Id = q.CurrentTargetId
+      WHERE q.Slug = @slug
+    `);
 
-    if (!q.recordset.length) return reply.code(404).send('Not found');
+  if (!q.recordset.length) return reply.code(404).send('Not found');
 
-    const { QR_Code_Id, Target_Id, Url, UTM } = q.recordset[0];
+  const { QR_Code_Id, Target_Id, Url, UTM } = q.recordset[0];
 
     // Gather scan info
     const ip = (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim();
@@ -413,39 +443,74 @@ export default async function qrRoutes(app: FastifyInstance) {
     const agent = useragent.parse(uaRaw);
     const geo = geoip.lookup(ip) || {};
 
-    // Insert scan asynchronously (don't block redirect)
-    // Use UTM data from the QR_Target table instead of query string
-    pool.request()
-      .input('QR_Code_Id', SQL.UniqueIdentifier, QR_Code_Id)
-      .input('Target_Id', SQL.UniqueIdentifier, Target_Id)
-      .input('OccurredAt', SQL.DateTime2, new Date())
-      .input('IP', SQL.NVarChar(45), ip)
-      .input('Country', SQL.NVarChar(5), geo.country || null)
-      .input('Region', SQL.NVarChar(100), geo.region || null)
-      .input('City', SQL.NVarChar(100), geo.city || null)
-      .input('Lat', SQL.Float, geo.ll ? geo.ll[0] : null)
-      .input('Lon', SQL.Float, geo.ll ? geo.ll[1] : null)
-      .input('UA_Raw', SQL.NVarChar(SQL.MAX), uaRaw)
-      .input('UA_Hints', SQL.NVarChar(SQL.MAX), JSON.stringify({
-        device: agent.device.toString(),
-        os: agent.os.toString(),
-        browser: agent.toAgent()
-      }))
-      .input('DeviceType', SQL.NVarChar(50), agent.device.toString())
-      .input('OS', SQL.NVarChar(50), agent.os.toString())
-      .input('Browser', SQL.NVarChar(50), agent.toAgent())
-      .input('Lang', SQL.NVarChar(SQL.MAX), req.headers['accept-language'] || null)
-      .input('Referer', SQL.NVarChar(SQL.MAX), req.headers['referer'] || null)
-      .input('UTM', SQL.NVarChar(SQL.MAX), UTM || null)  // Use UTM from QR_Target table
-      .input('Is_Prefetch', SQL.Bit, req.headers['x-moz'] === 'prefetch' || req.headers['purpose'] === 'prefetch' ? 1 : 0)
-      .query(`
-        INSERT INTO dbo.[QR_Scan]
-        (QR_Code_Id, Target_Id, OccurredAt, IP, Country, Region, City, Lat, Lon, UA_Raw, UA_Hints, DeviceType, OS, Browser, Lang, Referer, UTM, Is_Prefetch)
-        VALUES
-        (@QR_Code_Id, @Target_Id, @OccurredAt, @IP, @Country, @Region, @City, @Lat, @Lon, @UA_Raw, @UA_Hints, @DeviceType, @OS, @Browser, @Lang, @Referer, @UTM, @Is_Prefetch)
-      `).catch(console.error); // log errors but don't block redirect
+    // Enhanced prefetch/bot detection
+    const headers = req.headers;
+    const userAgent = uaRaw.toLowerCase();
+    
+    const isPrefetch = !!(
+      headers['x-moz'] === 'prefetch' ||
+      headers['purpose'] === 'prefetch' ||
+      headers['x-purpose'] === 'preview' ||
+      headers['x-facebook-user-agent'] ||
+      userAgent.includes('facebookexternalhit') ||
+      userAgent.includes('twitterbot') ||
+      userAgent.includes('linkedinbot') ||
+      userAgent.includes('whatsapp') ||
+      userAgent.includes('telegrambot') ||
+      userAgent.includes('slackbot') ||
+      userAgent.includes('discordbot') ||
+      userAgent.includes('preview') ||
+      userAgent.includes('crawler') ||
+      userAgent.includes('bot')
+    );
 
-    // Redirect immediately
+    // Only insert scan if it's NOT a prefetch/bot
+    if (!isPrefetch) {
+      // Insert scan asynchronously (don't block redirect)
+      pool.request()
+        .input('QR_Code_Id', SQL.UniqueIdentifier, QR_Code_Id)
+        .input('Target_Id', SQL.UniqueIdentifier, Target_Id)
+        .input('OccurredAt', SQL.DateTime2, new Date())
+        .input('IP', SQL.NVarChar(45), ip)
+        .input('Country', SQL.NVarChar(5), geo.country || null)
+        .input('Region', SQL.NVarChar(100), (() => {
+            let region = geo.region;
+            if (!region && geo.country === 'SG' && geo.ll) {
+              // Use precise Singapore regions if lat/lon available
+              region = getSingaporeRegion(geo.ll[0], geo.ll[1]);
+            } else if (!region) {
+              // Fallback for other city-states
+              region = geo.city || geo.country;
+            }
+            return region;
+          })())
+        .input('City', SQL.NVarChar(100), geo.city || null)
+        .input('Lat', SQL.Float, geo.ll ? geo.ll[0] : null)
+        .input('Lon', SQL.Float, geo.ll ? geo.ll[1] : null)
+        .input('UA_Raw', SQL.NVarChar(SQL.MAX), uaRaw)
+        .input('UA_Hints', SQL.NVarChar(SQL.MAX), JSON.stringify({
+          device: agent.device.toString(),
+          os: agent.os.toString(),
+          browser: agent.toAgent()
+        }))
+        .input('DeviceType', SQL.NVarChar(50), agent.device.toString())
+        .input('OS', SQL.NVarChar(50), agent.os.toString())
+        .input('Browser', SQL.NVarChar(50), agent.toAgent())
+        .input('Lang', SQL.NVarChar(SQL.MAX), req.headers['accept-language'] || null)
+        .input('Referer', SQL.NVarChar(SQL.MAX), req.headers['referer'] || null)
+        .input('UTM', SQL.NVarChar(SQL.MAX), UTM || null)
+        .input('Is_Prefetch', SQL.Bit, 0) // Real user scan
+        .query(`
+          INSERT INTO dbo.[QR_Scan]
+          (QR_Code_Id, Target_Id, OccurredAt, IP, Country, Region, City, Lat, Lon, UA_Raw, UA_Hints, DeviceType, OS, Browser, Lang, Referer, UTM, Is_Prefetch)
+          VALUES
+          (@QR_Code_Id, @Target_Id, @OccurredAt, @IP, @Country, @Region, @City, @Lat, @Lon, @UA_Raw, @UA_Hints, @DeviceType, @OS, @Browser, @Lang, @Referer, @UTM, @Is_Prefetch)
+        `).catch(console.error);
+    } else {
+      console.log('Skipping scan log - detected as prefetch/bot');
+    }
+
+    // Always redirect regardless (so link previews still work)
     return reply.redirect(Url);
   });
 
