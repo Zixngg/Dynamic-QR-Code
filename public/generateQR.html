@@ -25,7 +25,7 @@
     <div class="profile-menu">
       <button type="button" onclick="toggleProfileMenu()">Profile ▾</button>
       <div class="profile-dropdown" id="profileDropdown">
-        <a href="/profile.html">View Profile</a>
+        <a href="./profile.html">View Profile</a>
         <form action="/auth/logout" method="post"><button type="submit">Logout</button></form>
       </div>
     </div>
@@ -167,7 +167,8 @@
     const res = await fetch('/uploads', { method: 'POST', body: fd, credentials: 'include' });
     if (!res.ok) { alert('Upload failed'); return; }
     const data = await res.json();
-    document.getElementById('logoUrl').value = data.url;
+    // Prefer dataUrl to avoid cross-origin or FS path issues
+    document.getElementById('logoUrl').value = data.dataUrl || data.url;
     const thumb = document.getElementById('logoThumb');
     thumb.src = data.url;
     thumb.style.display = 'block';

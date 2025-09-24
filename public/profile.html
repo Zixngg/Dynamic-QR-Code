@@ -1,0 +1,110 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Profile • Dynamic QR Code</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/header.css">
+  <link rel="stylesheet" href="css/profile.css">
+</head>
+<body>
+<header class="header">
+  <a class="header__brand" href="/">Dynamic QR Code</a>
+  <nav class="nav">
+    <a href="/dashboard.html">Dashboard</a>
+    <div class="QRCode-menu">
+      <button type="button" onclick="toggleQRCodeMenu()">QR Code ▾</button>
+      <div class="QRCode-dropdown" id="QRCodeDropdown">
+        <a href="/generateQR.html">Generate QR Codes</a>
+        <a href="/qr.html">My QR Codes</a>
+      </div>
+    </div>
+    <div class="profile-menu">
+      <button type="button" onclick="toggleProfileMenu()">Profile ▾</button>
+      <div class="profile-dropdown" id="profileDropdown">
+        <a href="./profile.html">View Profile</a>
+        <form action="/auth/logout" method="post">
+          <button type="submit">Logout</button>
+        </form>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<main class="container">
+  <div class="card profile-card">
+    <h1>My Profile</h1>
+    <div id="form-msg"></div>
+
+    <div class="profile-info">
+      <div><strong>User ID:</strong> <span id="userId">—</span></div>
+      <div><strong>Email:</strong> <span id="userEmail">—</span></div>
+    </div>
+
+    <hr>
+
+    <form id="pwdForm" method="post">
+      <h2>Change Password</h2>
+      <div class="row">
+        <input class="input" type="password" name="oldPassword" placeholder="Current Password" required>
+      </div>
+      <div class="row">
+        <input class="input" type="password" name="newPassword" placeholder="New Password" required minlength="8">
+      </div>
+      <button class="btn" type="submit">Update Password</button>
+    </form>
+  </div>
+</main>
+
+<script>
+  // dropdown toggles
+  function toggleProfileMenu(){ const dd=document.getElementById('profileDropdown'); dd.style.display=dd.style.display==='block'?'none':'block'; }
+  function toggleQRCodeMenu(){ const dd=document.getElementById('QRCodeDropdown'); dd.style.display=dd.style.display==='block'?'none':'block'; }
+  document.addEventListener('click', (e) => {
+    ['profile','QRCode'].forEach(k=>{
+      const menu=document.getElementById(k+'Dropdown');
+      const btn=document.querySelector('.'+k+'-menu button');
+      if(menu && btn && !menu.contains(e.target) && !btn.contains(e.target)) menu.style.display='none';
+    });
+  });
+
+  const msgEl = document.getElementById('form-msg');
+
+  // fetch current user info
+  (async function(){
+    const r = await fetch('/api/me', { credentials:'include' });
+    if (r.status===401) {
+      location.href='/login.html?error=Session+expired';
+      return;
+    }
+    const user = await r.json();
+    document.getElementById('userId').textContent = user.id;
+    document.getElementById('userEmail').textContent = user.email;
+  })();
+
+  // handle password change
+  document.getElementById('pwdForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    msgEl.className = '';
+    msgEl.textContent = '';
+
+    const fd = new FormData(e.target);
+    const r = await fetch('/auth/change-password', {
+      method: 'POST',
+      body: new URLSearchParams(fd),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      credentials: 'include'
+    });
+
+    if (r.ok) {
+      msgEl.className='success';
+      msgEl.textContent='Password updated successfully';
+      e.target.reset();
+    } else {
+      msgEl.className='error';
+      msgEl.textContent='Failed to update password';
+    }
+  });
+</script>
+</body>
+</html>

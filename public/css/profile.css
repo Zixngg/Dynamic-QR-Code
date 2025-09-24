@@ -1,0 +1,19 @@
+.profile-card {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.profile-info {
+  margin-bottom: 20px;
+}
+
+.profile-info div {
+  margin: 6px 0;
+  font-size: 15px;
+}
+
+.profile-info strong {
+  display: inline-block;
+  width: 100px;
+}
