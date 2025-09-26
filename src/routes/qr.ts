@@ -273,7 +273,33 @@ export default async function qrRoutes(app: FastifyInstance) {
         campaign: utmCampaign || null
       });
 
-      const slug = Math.random().toString(36).substring(2, 9);
+      // Handle custom slug from form
+      let slug = String(body.slug || '').trim();
+      
+      // If no custom slug provided, generate a random one
+      if (!slug) {
+        slug = Math.random().toString(36).substring(2, 9);
+      } else {
+        // Validate custom slug format
+        if (!/^[a-zA-Z0-9\-]+$/.test(slug)) {
+          throw new Error('Slug can only contain letters, numbers, and hyphens');
+        }
+        if (slug.length < 3 || slug.length > 50) {
+          throw new Error('Slug must be between 3 and 50 characters');
+        }
+        if (slug.startsWith('-') || slug.endsWith('-')) {
+          throw new Error('Slug cannot start or end with a hyphen');
+        }
+        
+        // Check if slug is already taken
+        const existingSlug = await pool.request()
+          .input('slug', SQL.NVarChar(64), slug)
+          .query('SELECT TOP 1 Id FROM dbo.[QR_Code] WHERE Slug=@slug');
+        
+        if (existingSlug.recordset.length > 0) {
+          throw new Error('This custom short link is already taken. Please choose a different one.');
+        }
+      }
 
       // capture design from form selections (fallbacks match UI defaults)
       const fg = String(body.fg || '#0b3d91');
@@ -306,10 +332,13 @@ export default async function qrRoutes(app: FastifyInstance) {
         .input('url', SQL.NVarChar(2048), url)
         .input('ver', SQL.Int, 1)
         .input('utm', SQL.NVarChar(SQL.MAX), utmData)
+        .input('utm_source', SQL.NVarChar(200), utmSource || null)
+        .input('utm_medium', SQL.NVarChar(200), utmMedium || null)
+        .input('utm_campaign', SQL.NVarChar(200), utmCampaign || null)
         .query(`
-          INSERT INTO dbo.[QR_Target] (QR_Code_Id, Url, [Version], UTM)
+          INSERT INTO dbo.[QR_Target] (QR_Code_Id, Url, [Version], UTM, UTM_Source_s, UTM_Medium_s, UTM_Campaign_s)
           OUTPUT inserted.Id
-          VALUES (@qid, @url, @ver, @utm);
+          VALUES (@qid, @url, @ver, @utm, @utm_source, @utm_medium, @utm_campaign);
         `);
 
       const targetId = trgIns.recordset[0].Id as string;
@@ -416,10 +445,13 @@ export default async function qrRoutes(app: FastifyInstance) {
         .input('url', SQL.NVarChar(2048), url)
         .input('ver', SQL.Int, nextVer)
         .input('utm', SQL.NVarChar(SQL.MAX), utmData)
+        .input('utm_source', SQL.NVarChar(200), utmSource || null)
+        .input('utm_medium', SQL.NVarChar(200), utmMedium || null)
+        .input('utm_campaign', SQL.NVarChar(200), utmCampaign || null)
         .query(`
-          INSERT INTO dbo.[QR_Target] (QR_Code_Id, Url, [Version], UTM)
+          INSERT INTO dbo.[QR_Target] (QR_Code_Id, Url, [Version], UTM, UTM_Source_s, UTM_Medium_s, UTM_Campaign_s)
           OUTPUT inserted.Id
-          VALUES (@qid, @url, @ver, @utm);
+          VALUES (@qid, @url, @ver, @utm, @utm_source, @utm_medium, @utm_campaign);
         `);
 
       const targetId = trg.recordset[0].Id as string;
@@ -500,7 +532,8 @@ export default async function qrRoutes(app: FastifyInstance) {
       .input('uid', SQL.UniqueIdentifier, user.sub)
       .input('slug', SQL.NVarChar(64), slug)
       .query(`
-        SELECT q.Id, q.Name, q.Slug, t.Url AS CurrentUrl, q.CreatedAt
+        SELECT q.Id, q.Name, q.Slug, q.Design, t.Url AS CurrentUrl, t.UTM, 
+               t.UTM_Source_s, t.UTM_Medium_s, t.UTM_Campaign_s, q.CreatedAt
         FROM dbo.[QR_Code] q
         LEFT JOIN dbo.[QR_Target] t ON t.Id = q.CurrentTargetId
         WHERE q.User_Id=@uid AND q.Slug=@slug
@@ -508,7 +541,47 @@ export default async function qrRoutes(app: FastifyInstance) {
 
     if (!r.recordset.length) return reply.code(404).send({ error: 'Not found' });
 
-    reply.send(r.recordset[0]);
+    const result = r.recordset[0];
+    
+    // Parse design data if it exists
+    let design = {};
+    if (result.Design) {
+      try {
+        design = JSON.parse(result.Design);
+      } catch (e) {
+        console.error('Failed to parse design data:', e);
+      }
+    }
+    
+    // Parse UTM data - prefer individual fields over JSON field
+    let utm = {};
+    
+    // First try individual UTM fields
+    if (result.UTM_Source_s || result.UTM_Medium_s || result.UTM_Campaign_s) {
+      utm = {
+        source: result.UTM_Source_s || null,
+        medium: result.UTM_Medium_s || null,
+        campaign: result.UTM_Campaign_s || null
+      };
+    }
+    // Fallback to JSON UTM field if individual fields are empty
+    else if (result.UTM) {
+      try {
+        utm = JSON.parse(result.UTM);
+      } catch (e) {
+        console.error('Failed to parse UTM data:', e);
+      }
+    }
+
+    reply.send({
+      Id: result.Id,
+      Name: result.Name,
+      Slug: result.Slug,
+      CurrentUrl: result.CurrentUrl,
+      CreatedAt: result.CreatedAt,
+      Design: design,
+      UTM: utm
+    });
   });
 
   // ---------- Serve QR as SVG ----------

@@ -3,22 +3,16 @@
 <head>
   <meta charset="utf-8">
   <title>Edit QR • Dynamic QR Code</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Shared styles -->
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/header.css">
-  <style>
-    .wide { width:100%; max-width: 760px; }
-    .row-inline { display:flex; gap:10px; }
-    .row-inline .input { flex:1; }
-    .qr-line { display:flex; gap:14px; align-items:center; margin-bottom: 10px; }
-    .qr-line img { width:120px; height:120px; border:1px solid var(--border); border-radius:8px; }
-    /* page-specific layout overrides */
-    main.container.edit-page { align-items: flex-start; }
-    .stack { width:100%; max-width: 820px; margin:0 auto; display:flex; flex-direction:column; gap:16px; }
-  </style>
+  <!-- Page-specific styles -->
+  <link rel="stylesheet" href="css/generate.css">
 </head>
 <body>
 <header class="header">
-  <a class="header__brand" href="/">Dynamic QR Code</a>
+  <a class="header__brand" href="/dashboard.html">Dynamic QR Code</a>
   <nav class="nav">
     <a href="/dashboard.html">Dashboard</a>
     <div class="QRCode-menu">
@@ -38,85 +32,240 @@
   </nav>
 </header>
 
-<main class="container edit-page">
-  <div class="stack">
-  <form class="card wide" id="f" method="post" enctype="application/x-www-form-urlencoded">
-    <h1>Edit QR</h1>
-    <!-- ✅ single form-msg -->
-    <div id="form-msg"></div>
-    <p class="sub">Retarget the destination — the QR image stays the same.</p>
+<main class="container">
+  <div class="grid wide">
+    <!-- QR Code Info Section -->
+    <div class="card">
+      <div class="form-header">
+        <h1>Edit QR Code</h1>
+        <p class="sub">Update your QR code destination and design settings.</p>
+      </div>
 
-    <div class="qr-line">
-      <img id="qrImg" alt="QR">
-      <div>
-        <div><strong>Name:</strong> <span id="qrName">—</span></div>
-        <div><strong>Slug:</strong> <span id="qrSlug">—</span></div>
-        <div><a id="qrDyn" class="link" href="#" target="_blank">Open dynamic link</a></div>
-        <div><a id="dlLink" class="link" href="#" download>Download SVG</a></div>
+      <div id="form-msg"></div>
+
+      <div class="form-section">
+        <div class="section-header">
+          <h3>📱 QR Code Info</h3>
+          <span class="section-badge">Current</span>
+        </div>
+        
+        <div class="qr-line" style="display: flex; gap: 16px; align-items: center; margin-bottom: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: #fafbfc;">
+          <img id="qrImg" alt="QR" style="width: 120px; height: 120px; border: 1px solid var(--border); border-radius: 8px;">
+          <div style="flex: 1;">
+            <div style="margin-bottom: 8px;"><strong>Name:</strong> <span id="qrName">—</span></div>
+            <div style="margin-bottom: 8px;"><strong>Slug:</strong> <span id="qrSlug">—</span></div>
+            <div style="margin-bottom: 8px;"><a id="qrDyn" class="link" href="#" target="_blank">Open dynamic link</a></div>
+            <div><a id="dlLink" class="link" href="#" download>Download SVG</a></div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="row">
-      <input class="input" type="url" name="url" id="url" placeholder="New Destination URL (http/https)" required>
+    <!-- Update Target Form -->
+    <form class="card" id="targetForm">
+      <div class="form-header">
+        <h2>🎯 Update Destination</h2>
+        <p class="sub">Change where your QR code redirects users.</p>
+      </div>
+
+      <div id="target-msg"></div>
+
+      <div class="form-section">
+        <div class="section-header">
+          <h3>📍 New Destination</h3>
+          <span class="section-badge">Required</span>
+        </div>
+        
+        <div class="row">
+          <label class="input-label">
+            <span class="label-text">Destination URL</span>
+            <span class="label-required">*</span>
+          </label>
+          <input class="input" type="url" name="url" id="url" placeholder="https://example.com/new-landing-page" required>
+          <div class="help">The new webpage users will see after scanning your QR code.</div>
+        </div>
+
+        <div class="row row-inline">
+          <div class="input-group">
+            <label class="input-label">utm_source</label>
+            <input class="input" type="text" name="utm_source" id="utm_source" placeholder="e.g., flyer, poster, business-card">
+            <div class="help">Where did users find this QR code?</div>
+          </div>
+          <div class="input-group">
+            <label class="input-label">utm_medium</label>
+            <input class="input" type="text" name="utm_medium" id="utm_medium" placeholder="e.g., qr, print, digital">
+            <div class="help">What type of medium?</div>
+          </div>
+          <div class="input-group">
+            <label class="input-label">utm_campaign</label>
+            <input class="input" type="text" name="utm_campaign" id="utm_campaign" placeholder="e.g., summer2024, launch-event">
+            <div class="help">What campaign is this for?</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">
+          <span class="btn-icon">🎯</span>
+          Update Target
+        </button>
+        <div class="form-note">
+          <span class="note-icon">💡</span>
+          This changes where users go when they scan your QR code. The QR image stays the same.
+        </div>
+      </div>
+    </form>
+
+    <!-- Update Design Form -->
+    <form class="card" id="designForm">
+      <div class="form-header">
+        <h2>🎨 Update Design</h2>
+        <p class="sub">Customize the appearance of your QR code.</p>
+      </div>
+
+      <div id="design-msg"></div>
+
+      <div class="form-section">
+        <div class="section-header">
+          <h3>🎨 Visual Design</h3>
+          <span class="section-badge">Customize</span>
+        </div>
+        
+        <div class="design-grid">
+          <div class="design-group">
+            <label class="input-label">Colors</label>
+            <div class="color-inputs">
+              <div class="color-input">
+                <label class="color-label">Foreground</label>
+                <input class="input color-picker" type="color" name="fg" id="fg" value="#0b3d91">
+                <span class="color-value">#0b3d91</span>
+              </div>
+              <div class="color-input">
+                <label class="color-label">Background</label>
+                <input class="input color-picker" type="color" name="bg" id="bg" value="#ffffff">
+                <span class="color-value">#ffffff</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="design-group">
+            <label class="input-label">Error Correction</label>
+            <select class="input" name="ec" id="ec">
+              <option value="L">L (7%) - Low</option>
+              <option value="M" selected>M (15%) - Medium</option>
+              <option value="Q">Q (25%) - High</option>
+              <option value="H">H (30%) - Highest</option>
+            </select>
+            <div class="help">Higher levels allow more damage before the QR becomes unreadable.</div>
+          </div>
+
+          <div class="design-group">
+            <label class="input-label">Output Format</label>
+            <select class="input" name="format" id="format">
+              <option value="svg" selected>SVG - Scalable Vector</option>
+              <option value="png" disabled>PNG - Raster Image (Coming Soon)</option>
+            </select>
+            <div class="help">SVG is recommended for web use as it scales perfectly.</div>
+          </div>
+        </div>
+
+        <div class="row">
+          <label class="input-label">
+            <span class="label-text">Center Logo</span>
+            <span class="label-optional">Optional</span>
+          </label>
+          <div class="logo-upload-area">
+            <div class="logo-upload-box" id="logoUploadBox">
+              <div class="upload-icon">📁</div>
+              <div class="upload-text">
+                <span class="upload-title">Click to upload logo</span>
+                <span class="upload-subtitle">PNG, JPG, SVG up to 5MB</span>
+              </div>
+              <input type="file" id="logoInput" accept=".png,.jpg,.jpeg,.svg" style="display: none;" />
+            </div>
+            <div class="logo-preview" id="logoPreview" style="display: none;">
+              <img id="logoThumb" alt="logo preview">
+              <div class="logo-controls">
+                <button type="button" class="btn-remove-logo" id="removeLogo">✕</button>
+                <div class="logo-size-control">
+                  <label>Size: </label>
+                  <input class="input" type="number" name="logoSizePct" id="logoSizePct" min="10" max="40" value="22">
+                  <span>%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <input type="hidden" name="logoUrl" id="logoUrl">
+          <div class="help">Add your logo to the center of the QR code. Recommended size: 15-25% for best readability.</div>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">
+          <span class="btn-icon">🎨</span>
+          Update Design
+        </button>
+        <div class="form-note">
+          <span class="note-icon">💡</span>
+          This changes the visual appearance of your QR code. You'll need to download the new version.
+        </div>
+      </div>
+    </form>
+
+    <!-- RIGHT: live preview -->
+    <div class="preview-card">
+      <div class="preview-header">
+        <h2>🎯 Live Preview</h2>
+        <div class="preview-status">
+          <span class="status-indicator" id="previewStatus">Ready</span>
+        </div>
+      </div>
+      
+      <div class="preview-box">
+        <div class="qr-container">
+          <div id="previewSvg" class="qr-svg-container"></div>
+          <div class="qr-overlay" id="qrOverlay">
+            <div class="scan-hint">📱 Scan to test</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="preview-info">
+        <div class="info-item">
+          <span class="info-label">Short Link:</span>
+          <span class="info-value" id="previewShortLink">yourdomain.com/r/abc123</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Destination:</span>
+          <span class="info-value" id="previewDestination">https://example.com</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Format:</span>
+          <span class="info-value" id="previewFormat">SVG</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Error Correction:</span>
+          <span class="info-value" id="previewEC">M (15%)</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Colors:</span>
+          <span class="info-value" id="previewColors">#0b3d91 on #ffffff</span>
+        </div>
+      </div>
+      
+      <div class="preview-actions">
+        <button class="btn btn-secondary" id="downloadPreview">
+          <span class="btn-icon">⬇️</span>
+          Download Preview
+        </button>
+        <div class="help">Preview updates automatically as you make changes.</div>
+      </div>
     </div>
-
-    <div class="row row-inline">
-      <input class="input" type="text" name="utm_source" id="utm_source" placeholder="utm_source (optional)">
-      <input class="input" type="text" name="utm_medium" id="utm_medium" placeholder="utm_medium (optional)">
-      <input class="input" type="text" name="utm_campaign" id="utm_campaign" placeholder="utm_campaign (optional)">
-    </div>
-
-    <button class="btn" type="submit">Save new target</button>
-  </form>
-
-  <form class="card wide" id="designForm">
-    <h2>Edit Design</h2>
-    <div class="row row-inline">
-      <div>
-        <label>Foreground</label>
-        <input class="input" type="color" name="fg" id="fg" value="#0b3d91">
-      </div>
-      <div>
-        <label>Background</label>
-        <input class="input" type="color" name="bg" id="bg" value="#ffffff">
-      </div>
-      <div>
-        <label>Error correction</label>
-        <select class="input" name="ec" id="ec">
-          <option value="L">L (7%)</option>
-          <option value="M" selected>M (15%)</option>
-          <option value="Q">Q (25%)</option>
-          <option value="H">H (30%)</option>
-        </select>
-      </div>
-      <div>
-        <label>Logo size (%)</label>
-        <input class="input" type="number" name="logoSizePct" id="logoSizePct" min="10" max="40" value="22">
-      </div>
-    </div>
-
-    <div class="row">
-      <label>Center logo (optional)</label>
-      <div class="logo-row">
-        <input type="file" id="logoInput" accept=".png,.jpg,.jpeg,.svg" />
-        <input type="hidden" name="logoUrl" id="logoUrl">
-        <img id="logoThumb" alt="logo" style="display:none; width:42px; height:42px; border-radius:6px; border:1px solid var(--border)">
-      </div>
-    </div>
-
-    <div class="row">
-      <div class="preview-box" style="border:1px dashed var(--border); border-radius:8px; padding:8px; display:inline-block;">
-        <img id="previewImg" alt="QR preview" style="width:180px; height:180px;">
-      </div>
-    </div>
-
-    <button class="btn" type="button" id="saveDesignBtn">Save design</button>
-  </form>
   </div>
 </main>
 
 <script>
-  // dropdown toggles
+  // dropdowns
   function toggleProfileMenu(){ const dd=document.getElementById('profileDropdown'); dd.style.display=dd.style.display==='block'?'none':'block'; }
   function toggleQRCodeMenu(){ const dd=document.getElementById('QRCodeDropdown'); dd.style.display=dd.style.display==='block'?'none':'block'; }
   document.addEventListener('click', (e) => {
@@ -127,13 +276,16 @@
     });
   });
 
+  // messages
   const params = new URLSearchParams(location.search);
-  const slug = params.get('slug');
   const msgEl = document.getElementById('form-msg');
+  const slug = params.get('slug');
   let currentLogoDataUrl = '';
+  let qrData = null;
 
   if (!slug) {
-    msgEl.className='error'; msgEl.textContent='Missing slug';
+    msgEl.className='error'; 
+    msgEl.textContent='Missing slug';
   } else {
     // preload details
     (async function(){
@@ -142,27 +294,61 @@
 
       const r = await fetch('/api/qr/'+encodeURIComponent(slug), { credentials:'include' });
       if (!r.ok) { msgEl.className='error'; msgEl.textContent='Not found'; return; }
-      const d = await r.json();
+      qrData = await r.json();
 
-      document.getElementById('qrName').textContent = d.Name;
-      document.getElementById('qrSlug').textContent = d.Slug;
-      document.getElementById('url').value = d.CurrentUrl || '';
-      if (d.UTM && d.UTM.source) document.getElementById('utm_source').value = d.UTM.source;
-      if (d.UTM && d.UTM.medium) document.getElementById('utm_medium').value = d.UTM.medium;
-      if (d.UTM && d.UTM.campaign) document.getElementById('utm_campaign').value = d.UTM.campaign;
+      // Populate QR info
+      document.getElementById('qrName').textContent = qrData.Name;
+      document.getElementById('qrSlug').textContent = qrData.Slug;
+      document.getElementById('url').value = qrData.CurrentUrl || '';
+      
+      // Populate UTM data
+      if (qrData.UTM) {
+        if (qrData.UTM.source && qrData.UTM.source !== null && qrData.UTM.source !== '') {
+          document.getElementById('utm_source').value = qrData.UTM.source;
+        }
+        if (qrData.UTM.medium && qrData.UTM.medium !== null && qrData.UTM.medium !== '') {
+          document.getElementById('utm_medium').value = qrData.UTM.medium;
+        }
+        if (qrData.UTM.campaign && qrData.UTM.campaign !== null && qrData.UTM.campaign !== '') {
+          document.getElementById('utm_campaign').value = qrData.UTM.campaign;
+        }
+      }
 
+      // Populate design data
+      if (qrData.Design) {
+        if (qrData.Design.fg) document.getElementById('fg').value = qrData.Design.fg;
+        if (qrData.Design.bg) document.getElementById('bg').value = qrData.Design.bg;
+        if (qrData.Design.ec) document.getElementById('ec').value = qrData.Design.ec;
+        if (qrData.Design.logoSizePct) document.getElementById('logoSizePct').value = qrData.Design.logoSizePct;
+        if (qrData.Design.logoUrl) {
+          document.getElementById('logoUrl').value = qrData.Design.logoUrl;
+          currentLogoDataUrl = qrData.Design.logoUrl;
+          
+          // Show existing logo
+          const logoThumb = document.getElementById('logoThumb');
+          const logoPreview = document.getElementById('logoPreview');
+          const logoUploadBox = document.getElementById('logoUploadBox');
+          
+          logoThumb.src = qrData.Design.logoUrl;
+          logoPreview.style.display = 'block';
+          logoUploadBox.style.display = 'none';
+        }
+      }
+
+      // Set up QR image and links
       const img = document.getElementById('qrImg');
       const dl = document.getElementById('dlLink');
       const dyn = document.getElementById('qrDyn');
 
       img.src = '/qr/'+encodeURIComponent(slug)+'.svg';
-      dl.href = img.src; dl.download = slug+'.svg';
+      dl.href = img.src; 
+      dl.download = slug+'.svg';
       dyn.href = '/r/'+encodeURIComponent(slug);
 
-      // preload current design from SVG endpoint is not exposed, so keep defaults
+      // Update preview with current values
       refreshPreview();
 
-      // ✅ show success/error if redirected with ?success or ?error
+      // Show success/error messages
       if (params.get('success')) {
         msgEl.className='success';
         msgEl.textContent=params.get('success');
@@ -174,18 +360,208 @@
     })();
   }
 
-  // submit retarget
-  document.getElementById('f').addEventListener('submit', async (e) => {
-    e.preventDefault();
+  // Color picker updates
+  function updateColorValues() {
+    const fgInput = document.getElementById('fg');
+    const bgInput = document.getElementById('bg');
+    const fgValue = fgInput.nextElementSibling;
+    const bgValue = bgInput.nextElementSibling;
+    
+    fgValue.textContent = fgInput.value;
+    bgValue.textContent = bgInput.value;
+  }
 
-    msgEl.className = '';
-    msgEl.textContent = '';
+  // Live preview with enhanced info
+  function refreshPreview() {
+    const fg = document.getElementById('fg').value;
+    const bg = document.getElementById('bg').value;
+    const ec = document.getElementById('ec').value;
+    const format = document.getElementById('format').value;
+    const logoUrl = document.getElementById('logoUrl').value || '';
+    const logoSizePct = document.getElementById('logoSizePct').value || '22';
+    const url = document.getElementById('url').value || '';
+    const utmSource = document.getElementById('utm_source').value || '';
+    const utmMedium = document.getElementById('utm_medium').value || '';
+    const utmCampaign = document.getElementById('utm_campaign').value || '';
 
-    const fd = new FormData(e.target);
-    const urlParams = new URLSearchParams();
-    for (const [key, value] of fd.entries()) {
-      urlParams.append(key, value.toString());
+    // Build the preview URL with actual destination
+    let previewUrl = url;
+    if (previewUrl) {
+      // Add UTM parameters if provided
+      const utmParams = new URLSearchParams();
+      if (utmSource) utmParams.set('utm_source', utmSource);
+      if (utmMedium) utmParams.set('utm_medium', utmMedium);
+      if (utmCampaign) utmParams.set('utm_campaign', utmCampaign);
+      
+      if (utmParams.toString()) {
+        previewUrl += (previewUrl.includes('?') ? '&' : '?') + utmParams.toString();
+      }
     }
+
+    const qs = new URLSearchParams({ 
+      fg, 
+      bg, 
+      ec, 
+      logoUrl, 
+      logoSizePct,
+      url: previewUrl || 'https://example.com/preview' // Fallback for preview
+    });
+    
+    const previewSvg = document.getElementById('previewSvg');
+    const previewStatus = document.getElementById('previewStatus');
+    
+    // Show loading state
+    previewStatus.textContent = 'Loading...';
+    previewStatus.className = 'status-indicator';
+    
+    // Update preview SVG with error handling
+    const previewUrl_full = '/qr/preview?' + qs.toString();
+    
+    fetch(previewUrl_full)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        return response.text();
+      })
+      .then(svgContent => {
+        previewSvg.innerHTML = svgContent;
+        previewStatus.textContent = 'Ready';
+        previewStatus.className = 'status-indicator';
+      })
+      .catch(error => {
+        previewStatus.textContent = 'Preview Error';
+        previewStatus.className = 'status-indicator error';
+        console.error('Failed to load QR preview:', error);
+      });
+    
+    // Update preview info
+    const shortLinkSlug = slug || 'abc123';
+    const shortLink = `yourdomain.com/r/${shortLinkSlug}`;
+    const destination = previewUrl || 'https://example.com';
+    
+    document.getElementById('previewShortLink').textContent = shortLink;
+    document.getElementById('previewDestination').textContent = destination.length > 30 ? destination.substring(0, 30) + '...' : destination;
+    document.getElementById('previewFormat').textContent = format.toUpperCase();
+    document.getElementById('previewEC').textContent = document.getElementById('ec').options[document.getElementById('ec').selectedIndex].textContent;
+    document.getElementById('previewColors').textContent = `${fg} on ${bg}`;
+    
+    // Update color values
+    updateColorValues();
+  }
+
+  // Enhanced logo upload
+  function setupLogoUpload() {
+    const logoInput = document.getElementById('logoInput');
+    const logoUploadBox = document.getElementById('logoUploadBox');
+    const logoPreview = document.getElementById('logoPreview');
+    const logoThumb = document.getElementById('logoThumb');
+    const removeLogoBtn = document.getElementById('removeLogo');
+    
+    // Click to upload
+    logoUploadBox.addEventListener('click', () => logoInput.click());
+    
+    // Drag and drop
+    logoUploadBox.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      logoUploadBox.classList.add('drag-over');
+    });
+    
+    logoUploadBox.addEventListener('dragleave', () => {
+      logoUploadBox.classList.remove('drag-over');
+    });
+    
+    logoUploadBox.addEventListener('drop', (e) => {
+      e.preventDefault();
+      logoUploadBox.classList.remove('drag-over');
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        logoInput.files = files;
+        handleLogoUpload(files[0]);
+      }
+    });
+    
+    // File input change
+    logoInput.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (file) handleLogoUpload(file);
+    });
+    
+    // Remove logo
+    removeLogoBtn.addEventListener('click', () => {
+      document.getElementById('logoUrl').value = '';
+      logoPreview.style.display = 'none';
+      logoUploadBox.style.display = 'flex';
+      logoInput.value = '';
+      refreshPreview();
+    });
+  }
+
+  async function handleLogoUpload(file) {
+    if (!file) return;
+    
+    // Validate file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB');
+      return;
+    }
+    
+    const fd = new FormData();
+    fd.set('file', file);
+    
+    const previewStatus = document.getElementById('previewStatus');
+    previewStatus.textContent = 'Uploading...';
+    previewStatus.className = 'status-indicator';
+    
+    try {
+      const res = await fetch('/uploads', { method: 'POST', body: fd, credentials: 'include' });
+      if (!res.ok) { 
+        alert('Upload failed. Please try again.'); 
+        previewStatus.textContent = 'Upload Error';
+        previewStatus.className = 'status-indicator error';
+        return; 
+      }
+      
+      const data = await res.json();
+      document.getElementById('logoUrl').value = data.url || data.dataUrl;
+      currentLogoDataUrl = data.url || data.dataUrl;
+      
+      const logoThumb = document.getElementById('logoThumb');
+      const logoPreview = document.getElementById('logoPreview');
+      const logoUploadBox = document.getElementById('logoUploadBox');
+      
+      logoThumb.src = data.url;
+      logoPreview.style.display = 'block';
+      logoUploadBox.style.display = 'none';
+      
+      // Force refresh preview after successful upload
+      setTimeout(() => {
+        refreshPreview();
+      }, 100);
+      
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Upload failed. Please check your connection and try again.');
+      previewStatus.textContent = 'Upload Error';
+      previewStatus.className = 'status-indicator error';
+    }
+  }
+
+  // Update target form submission
+  document.getElementById('targetForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!slug) return;
+
+    const targetMsgEl = document.getElementById('target-msg');
+    targetMsgEl.className = '';
+    targetMsgEl.textContent = '';
+
+    const urlParams = new URLSearchParams({
+      url: document.getElementById('url').value,
+      utm_source: document.getElementById('utm_source').value,
+      utm_medium: document.getElementById('utm_medium').value,
+      utm_campaign: document.getElementById('utm_campaign').value
+    });
 
     const r = await fetch('/qr/' + encodeURIComponent(slug) + '/retarget', {
       method: 'POST',
@@ -200,67 +576,83 @@
     }
 
     if (r.ok) {
-      msgEl.className = 'success';
-      msgEl.textContent = 'Target updated successfully';
+      targetMsgEl.className = 'success';
+      targetMsgEl.textContent = 'Target updated successfully';
+      refreshPreview();
     } else {
-      msgEl.className = 'error';
-      msgEl.textContent = 'Failed to update target';
+      targetMsgEl.className = 'error';
+      targetMsgEl.textContent = 'Failed to update target';
     }
   });
 
-  // ------- Design editor logic -------
-  function refreshPreview(){
-    const fg = document.getElementById('fg').value;
-    const bg = document.getElementById('bg').value;
-    const ec = document.getElementById('ec').value;
-    const logoUrl = document.getElementById('logoUrl').value || '';
-    const logoSizePct = document.getElementById('logoSizePct').value || '22';
-    const qs = new URLSearchParams({ fg, bg, ec, logoUrl, logoSizePct });
-    document.getElementById('previewImg').src = '/qr/preview?' + qs.toString();
-  }
-  ['fg','bg','ec','logoSizePct'].forEach(id => document.getElementById(id).addEventListener('change', refreshPreview));
-
-  // upload logo and show thumb
-  document.getElementById('logoInput').addEventListener('change', async (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    const fd = new FormData();
-    fd.set('file', f);
-    const res = await fetch('/uploads', { method:'POST', body: fd, credentials:'include' });
-    if (!res.ok) { alert('Upload failed'); return; }
-    const data = await res.json();
-    console.log('Upload response:', data);
-    document.getElementById('logoUrl').value = data.dataUrl || data.url;
-    currentLogoDataUrl = data.dataUrl || data.url || '';
-    console.log('Set logoUrl to:', document.getElementById('logoUrl').value ? 'data:...' : 'empty');
-    const t = document.getElementById('logoThumb');
-    t.src = data.url; t.style.display='inline-block';
-    refreshPreview();
-  });
-
-  // save design
-  document.getElementById('saveDesignBtn').addEventListener('click', async () => {
+  // Update design form submission
+  document.getElementById('designForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
     if (!slug) return;
+    
+    const designMsgEl = document.getElementById('design-msg');
+    designMsgEl.className = '';
+    designMsgEl.textContent = '';
+    
     const hiddenLogo = document.getElementById('logoUrl').value;
     const logoUrlValue = currentLogoDataUrl || hiddenLogo;
-    console.log('Saving design with logoUrl:', logoUrlValue ? 'data:...' : 'empty');
-    console.log('Full logoUrl length:', logoUrlValue ? logoUrlValue.length : 0);
+    
     const body = new URLSearchParams({
       fg: document.getElementById('fg').value,
       bg: document.getElementById('bg').value,
       ec: document.getElementById('ec').value,
       format: 'svg',
-      // encode to avoid '+' turning into spaces in form encoding
       logoUrl: encodeURIComponent(logoUrlValue),
       logoSizePct: document.getElementById('logoSizePct').value
     });
+    
     const r = await fetch('/qr/' + encodeURIComponent(slug) + '/design', {
-      method:'POST', body, headers:{ 'Content-Type':'application/x-www-form-urlencoded' }, credentials:'include'
+      method:'POST', 
+      body, 
+      headers:{ 'Content-Type':'application/x-www-form-urlencoded' }, 
+      credentials:'include'
     });
-    if (r.redirected) { location.href = r.url; return; }
-    if (r.ok) { msgEl.className='success'; msgEl.textContent='Design updated'; }
-    else { msgEl.className='error'; msgEl.textContent='Failed to update design'; }
+    
+    if (r.redirected) { 
+      location.href = r.url; 
+      return; 
+    }
+    
+    if (r.ok) { 
+      designMsgEl.className='success'; 
+      designMsgEl.textContent='Design updated successfully';
+      refreshPreview();
+    } else { 
+      designMsgEl.className='error'; 
+      designMsgEl.textContent='Failed to update design'; 
+    }
+  });
+
+  // Download preview
+  document.getElementById('downloadPreview').addEventListener('click', () => {
+    const link = document.createElement('a');
+    link.href = '/qr/' + encodeURIComponent(slug) + '.svg';
+    link.download = slug + '.svg';
+    link.click();
+  });
+
+  // Initialize everything
+  document.addEventListener('DOMContentLoaded', () => {
+    setupLogoUpload();
+    
+    // Add event listeners for preview updates
+    ['fg','bg','ec','logoSizePct','url','utm_source','utm_medium','utm_campaign'].forEach(name => {
+      const element = document.getElementById(name);
+      if (element) {
+        element.addEventListener('change', refreshPreview);
+        element.addEventListener('input', refreshPreview);
+      }
+    });
+    
+    // Initial render
+    refreshPreview();
   });
 </script>
+
 </body>
 </html>
