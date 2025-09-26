@@ -655,4 +655,23 @@ export default async function qrRoutes(app: FastifyInstance) {
     return reply.redirect(Url);
   });
 
+  // Get QR code name for dashboard filter
+  app.get<{ Params: { userId: string } }>('/api/user/:userId/qrcodes', async (req, reply) => {
+  const { userId } = req.params; // Now TypeScript knows userId exists
+  const pool = await getPool();
+
+  const r = await pool.request()
+    .input('uid', SQL.UniqueIdentifier, userId)
+    .query(`
+      SELECT CAST(Id AS NVARCHAR(36)) AS __value, Name AS __text
+      FROM dbo.QR_Code
+      WHERE User_Id = @uid
+      UNION
+      SELECT 'all' AS __value, 'All QR Codes' AS __text
+    `);
+
+  reply.send(r.recordset);
+});
+
+
 }
