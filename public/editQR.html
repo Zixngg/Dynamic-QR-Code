@@ -52,8 +52,16 @@
         <div class="qr-line" style="display: flex; gap: 16px; align-items: center; margin-bottom: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: #fafbfc;">
           <img id="qrImg" alt="QR" style="width: 120px; height: 120px; border: 1px solid var(--border); border-radius: 8px;">
           <div style="flex: 1;">
-            <div style="margin-bottom: 8px;"><strong>Name:</strong> <span id="qrName">—</span></div>
-            <div style="margin-bottom: 8px;"><strong>Slug:</strong> <span id="qrSlug">—</span></div>
+            <div class="info-item" style="margin-bottom: 8px;">
+              <strong>Name:</strong> 
+              <span id="qrName" class="editable-field" data-field="name">—</span>
+              <button class="edit-btn" onclick="editField('name')" title="Edit name">✏️</button>
+            </div>
+            <div class="info-item" style="margin-bottom: 8px;">
+              <strong>Slug:</strong> 
+              <span id="qrSlug" class="editable-field" data-field="slug">—</span>
+              <button class="edit-btn" onclick="editField('slug')" title="Edit slug">✏️</button>
+            </div>
             <div style="margin-bottom: 8px;"><a id="qrDyn" class="link" href="#" target="_blank">Open dynamic link</a></div>
             <div style="margin-bottom: 12px;">
               <a id="dlLink" class="link" href="#" download>Download QR Code (SVG)</a>
@@ -276,6 +284,7 @@
   const slug = params.get('slug');
   let currentLogoDataUrl = '';
   let qrData = null;
+  let originalSlug = null;
 
   if (!slug) {
     msgEl.className='error'; 
@@ -294,6 +303,9 @@
       document.getElementById('qrName').textContent = qrData.Name;
       document.getElementById('qrSlug').textContent = qrData.Slug;
       document.getElementById('url').value = qrData.Url || '';
+      
+      // Store original slug for reference
+      originalSlug = qrData.Slug;
       
       // Populate UTM data
       if (qrData.UTM) {
@@ -647,6 +659,123 @@
     // Initial render
     refreshPreview();
   });
+
+  // Edit field function
+  function editField(fieldType) {
+    const fieldElement = document.getElementById(`qr${fieldType.charAt(0).toUpperCase() + fieldType.slice(1)}`);
+    const originalValue = fieldElement.textContent;
+    
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = originalValue;
+    input.className = 'edit-input';
+    input.maxLength = fieldType === 'name' ? 100 : 50;
+    
+    if (fieldType === 'slug') {
+      input.pattern = '[a-zA-Z0-9-_]+';
+      input.title = 'Only letters, numbers, hyphens, and underscores allowed';
+    }
+    
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'save-btn';
+    saveBtn.innerHTML = '✓';
+    saveBtn.onclick = () => saveField(fieldType, input, saveBtn);
+    
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'cancel-btn';
+    cancelBtn.innerHTML = '✕';
+    cancelBtn.onclick = () => cancelFieldEdit(fieldElement, originalValue);
+    
+    fieldElement.style.display = 'none';
+    fieldElement.parentElement.querySelector('.edit-btn').style.display = 'none';
+    
+    fieldElement.parentElement.appendChild(input);
+    fieldElement.parentElement.appendChild(saveBtn);
+    fieldElement.parentElement.appendChild(cancelBtn);
+    
+    input.focus();
+    input.select();
+  }
+
+  // Save field function
+  async function saveField(fieldType, input, saveBtn) {
+    const newValue = input.value.trim();
+    const fieldElement = document.getElementById(`qr${fieldType.charAt(0).toUpperCase() + fieldType.slice(1)}`);
+    
+    if (!newValue) {
+      alert(`${fieldType.charAt(0).toUpperCase() + fieldType.slice(1)} cannot be empty`);
+      return;
+    }
+    
+    if (fieldType === 'slug' && !/^[a-zA-Z0-9-_]+$/.test(newValue)) {
+      alert('Slug can only contain letters, numbers, hyphens, and underscores');
+      return;
+    }
+    
+    if (newValue === fieldElement.textContent) {
+      cancelFieldEdit(fieldElement, newValue);
+      return;
+    }
+    
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '...';
+    
+    try {
+      const updateData = { [fieldType]: newValue };
+      const response = await fetch(`/api/qr/${encodeURIComponent(originalSlug)}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(updateData)
+      });
+      
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || `Failed to update ${fieldType}`);
+      }
+      
+      // Update the field
+      fieldElement.textContent = newValue;
+      
+      // If slug changed, update the page URL and all references
+      if (fieldType === 'slug') {
+        originalSlug = newValue;
+        // Update the page URL without reload
+        const newUrl = new URL(window.location);
+        newUrl.searchParams.set('slug', newValue);
+        window.history.replaceState({}, '', newUrl);
+        
+        // Update all links and references
+        document.getElementById('qrDyn').href = `/r/${encodeURIComponent(newValue)}`;
+        document.getElementById('dlLink').href = `/qr/${encodeURIComponent(newValue)}/svg`;
+        document.querySelector('img#qrImg').src = `/qr/${encodeURIComponent(newValue)}/svg`;
+        
+        // Update qrData
+        qrData.Slug = newValue;
+      } else {
+        // Update qrData
+        qrData.Name = newValue;
+      }
+      
+      cancelFieldEdit(fieldElement, newValue);
+    } catch (error) {
+      alert(`Failed to update ${fieldType}: ` + error.message);
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '✓';
+    }
+  }
+
+  // Cancel field edit
+  function cancelFieldEdit(fieldElement, originalValue) {
+    fieldElement.style.display = '';
+    fieldElement.textContent = originalValue;
+    
+    const editBtn = fieldElement.parentElement.querySelector('.edit-btn');
+    editBtn.style.display = '';
+    
+    // Remove input and buttons
+    fieldElement.parentElement.querySelectorAll('.edit-input, .save-btn, .cancel-btn').forEach(el => el.remove());
+  }
 </script>
 
 </body>

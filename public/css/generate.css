@@ -142,6 +142,41 @@
   color: #3730a3;
 }
 
+.section-badge.required {
+  background: #f89292;
+  color: rgb(119, 6, 6);
+}
+
+/* Collapsible Sections */
+.collapsible .section-header {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.collapsible .section-header:hover {
+  background-color: #f8f9fa;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toggle-icon {
+  font-size: 12px;
+  color: var(--muted);
+  transition: transform 0.2s ease;
+}
+
+.section-content {
+  padding-top: 16px;
+}
+
 .section-description {
   font-size: 13px;
   color: var(--muted);
@@ -394,7 +429,7 @@
 
 /* Form Actions */
 .form-actions {
-  margin-top: 32px;
+  margin-top: 30px;
   padding-top: 20px;
   border-top: 1px solid var(--border);
 }
@@ -445,6 +480,84 @@
   box-shadow: var(--shadow);
   background: #fff;
   padding: 20px;
+}
+
+/* Inline Editing Styles */
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.editable-field {
+  flex: 1;
+}
+
+.edit-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: all 0.2s ease;
+  font-size: 12px;
+}
+
+.edit-btn:hover {
+  opacity: 1;
+  background: #f1f3f4;
+}
+
+.edit-input {
+  flex: 1;
+  padding: 6px 8px;
+  border: 2px solid var(--primary);
+  border-radius: 6px;
+  font-size: inherit;
+  font-family: inherit;
+  background: #fff;
+  min-width: 120px;
+}
+
+.edit-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(11, 61, 145, 0.2);
+}
+
+.save-btn,
+.cancel-btn {
+  padding: 6px 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  margin-left: 4px;
+}
+
+.save-btn {
+  background: #10b981;
+  color: white;
+}
+
+.save-btn:hover:not(:disabled) {
+  background: #059669;
+}
+
+.cancel-btn {
+  background: #ef4444;
+  color: white;
+}
+
+.cancel-btn:hover {
+  background: #dc2626;
+}
+
+.save-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .preview-header {

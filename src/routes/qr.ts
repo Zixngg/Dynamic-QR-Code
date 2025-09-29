@@ -451,6 +451,90 @@ export default async function qrRoutes(app: FastifyInstance) {
     }
   });
 
+  // ---------- Update QR Name/Slug ----------
+  app.post('/api/qr/:slug/update', async (req, reply) => {
+    let user: AccessPayload;
+    try {
+      user = getUserOrThrow(req);
+    } catch {
+      return reply.code(401).send('Unauthorized');
+    }
+
+    const { slug } = req.params as any;
+    const { name, slug: newSlug } = req.body as any;
+
+    try {
+      const pool = await getPool();
+
+      // Check if QR exists and belongs to user
+      const checkResult = await pool.request()
+        .input('slug', SQL.NVarChar, slug)
+        .input('uid', SQL.UniqueIdentifier, user.sub)
+        .query(`
+          SELECT Id FROM dbo.[QR_Code] 
+          WHERE Slug = @slug AND User_Id = @uid AND Archived = 0
+        `);
+
+      if (!checkResult.recordset.length) {
+        return reply.code(404).send('QR code not found');
+      }
+
+      // If updating slug, check if new slug is unique
+      if (newSlug && newSlug !== slug) {
+        const slugCheck = await pool.request()
+          .input('newSlug', SQL.NVarChar, newSlug)
+          .input('uid', SQL.UniqueIdentifier, user.sub)
+          .query(`
+            SELECT Id FROM dbo.[QR_Code] 
+            WHERE Slug = @newSlug AND User_Id = @uid AND Archived = 0
+          `);
+
+        if (slugCheck.recordset.length > 0) {
+          return reply.code(409).send('Slug already exists');
+        }
+      }
+
+      // Build update query
+      const updates: string[] = [];
+      const inputs: any = { 
+        uid: { type: SQL.UniqueIdentifier, value: user.sub }, 
+        originalSlug: { type: SQL.NVarChar, value: slug } 
+      };
+
+      if (name) {
+        updates.push('Name = @name');
+        inputs.name = { type: SQL.NVarChar, value: name };
+      }
+
+      if (newSlug) {
+        updates.push('Slug = @newSlug');
+        inputs.newSlug = { type: SQL.NVarChar, value: newSlug };
+      }
+
+      if (updates.length === 0) {
+        return reply.code(400).send('No updates provided');
+      }
+
+      const updateQuery = `
+        UPDATE dbo.[QR_Code] 
+        SET ${updates.join(', ')}
+        WHERE Slug = @originalSlug AND User_Id = @uid AND Archived = 0
+      `;
+
+      const request = pool.request();
+      Object.keys(inputs).forEach(key => {
+        request.input(key, inputs[key].type, inputs[key].value);
+      });
+
+      await request.query(updateQuery);
+
+      return reply.send({ success: true });
+    } catch (error) {
+      console.error('QR update failed:', error);
+      return reply.code(500).send('Update failed');
+    }
+  });
+
   // ---------- Get QR Data for Edit Page ----------
   app.get('/qr/:slug/data', async (req, reply) => {
     let user: AccessPayload;
