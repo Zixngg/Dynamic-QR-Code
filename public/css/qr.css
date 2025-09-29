@@ -12,6 +12,7 @@
   align-items: flex-start;
   margin-bottom: 32px;
   gap: 24px;
+  flex-wrap: wrap;
 }
 
 .header-content {
@@ -21,6 +22,22 @@
 .search-container {
   position: relative;
   min-width: 300px;
+}
+
+.filter-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-select {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  min-width: 120px;
 }
 
 .search-input {
@@ -91,6 +108,14 @@
 
 .qr-info {
   flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.qr-info-left {
+  flex: 1;
 }
 
 .qr-name {
@@ -107,6 +132,31 @@
   font-weight: 500;
   margin: 0 0 8px 0;
   font-family: 'Courier New', monospace;
+}
+
+.qr-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: flex-start;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.qr-tags .tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.qr-tags .no-tags {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 12px;
 }
 
 .qr-date {
@@ -228,6 +278,16 @@
   .qr-grid {
     grid-template-columns: 1fr;
     gap: 16px;
+  }
+  
+  .qr-info {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .qr-tags {
+    justify-content: flex-start;
+    margin-top: 8px;
   }
   
   .qr-actions {

@@ -41,6 +41,11 @@
       <input type="text" id="searchInput" placeholder="Search QR codes by name..." class="search-input">
       <div class="search-icon">🔍</div>
     </div>
+    <div class="filter-container">
+      <select id="tagFilter" class="filter-select">
+        <option value="">All Tags</option>
+      </select>
+    </div>
   </div>
 
   <div id="form-msg"></div>
@@ -90,11 +95,20 @@
   let allQRCodes = [];
 
   // Search functionality
-  function filterQRCodes(searchTerm) {
+  function filterQRCodes(searchTerm, tagFilter) {
     const qrGrid = document.getElementById('qrGrid');
-    const filtered = allQRCodes.filter(qr => 
+    let filtered = allQRCodes.filter(qr => 
       qr.Name.toLowerCase().includes(searchTerm.toLowerCase())
     );
+    
+    // Apply tag filter
+    if (tagFilter) {
+      filtered = filtered.filter(qr => {
+        if (!qr.Tags) return false;
+        const tags = typeof qr.Tags === 'string' ? JSON.parse(qr.Tags) : qr.Tags;
+        return Array.isArray(tags) && tags.some(tag => tag.name === tagFilter);
+      });
+    }
     
     qrGrid.innerHTML = '';
     
@@ -121,9 +135,19 @@
         <img src="/qr/${encodeURIComponent(qr.Slug)}/svg" alt="QR Code">
       </div>
       <div class="qr-info">
-        <h3 class="qr-name">${qr.Name}</h3>
-        <p class="qr-slug">${qr.Slug}</p>
-        <p class="qr-date">Created ${new Date(qr.CreatedAt).toLocaleDateString()}</p>
+        <div class="qr-info-left">
+          <h3 class="qr-name">${qr.Name}</h3>
+          <p class="qr-slug">${qr.Slug}</p>
+          <p class="qr-date">Created ${new Date(qr.CreatedAt).toLocaleDateString()}</p>
+        </div>
+        <div class="qr-tags">
+          ${(() => {
+            const tags = qr.Tags ? (typeof qr.Tags === 'string' ? JSON.parse(qr.Tags) : qr.Tags) : [];
+            return tags && tags.length > 0 ? 
+              tags.map(tag => `<span class="tag" style="background-color: ${tag.color}; color: white;">${tag.name}</span>`).join('') :
+              '<span class="no-tags">No tags</span>';
+          })()}
+        </div>
       </div>
       <div class="qr-actions">
         <a href="/r/${encodeURIComponent(qr.Slug)}" target="_blank" class="action-btn primary">
@@ -144,7 +168,12 @@
 
   // Search input event listener
   document.getElementById('searchInput').addEventListener('input', (e) => {
-    filterQRCodes(e.target.value);
+    filterQRCodes(e.target.value, document.getElementById('tagFilter').value);
+  });
+  
+  // Tag filter event listener
+  document.getElementById('tagFilter').addEventListener('change', (e) => {
+    filterQRCodes(document.getElementById('searchInput').value, e.target.value);
   });
 
   // fetch and render QR codes
@@ -184,6 +213,29 @@
       `;
       return;
     }
+
+    // Populate tag filter
+    const tagFilter = document.getElementById('tagFilter');
+    const allTags = new Set();
+    rows.forEach(qr => {
+      if (qr.Tags) {
+        const tags = typeof qr.Tags === 'string' ? JSON.parse(qr.Tags) : qr.Tags;
+        if (Array.isArray(tags)) {
+          tags.forEach(tag => allTags.add(tag.name));
+        }
+      }
+    });
+    
+    // Clear existing options except "All Tags"
+    tagFilter.innerHTML = '<option value="">All Tags</option>';
+    
+    // Add tag options
+    Array.from(allTags).sort().forEach(tagName => {
+      const option = document.createElement('option');
+      option.value = tagName;
+      option.textContent = tagName;
+      tagFilter.appendChild(option);
+    });
 
     // Create cards for all QR codes
     rows.forEach(createQRCard);

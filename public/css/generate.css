@@ -177,6 +177,168 @@
   padding-top: 16px;
 }
 
+/* Tags Input */
+.tags-input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tags-display {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 32px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  order: 2;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.tag-remove {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  padding: 0;
+  margin-left: 4px;
+  opacity: 0.8;
+}
+
+.tag-remove:hover {
+  opacity: 1;
+}
+
+.tag-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  order: 1;
+}
+
+.tag-input-row .input {
+  flex: 3;
+  min-width: 500px;
+}
+
+.tag-input-row .color-picker {
+  width: 250px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.tag-input-row .btn {
+  white-space: nowrap;
+  min-width: 50px;
+  height: 32px;
+  padding: 4px 6px;
+  font-size: 10px;
+}
+
+/* Tag editing in editQR.html */
+.tags-edit-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f8f9fa;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.tags-edit-container .tag-input-row {
+  gap: 12px;
+}
+
+.tags-edit-container .tag-input-row .input {
+  flex: 4;
+  min-width: 250px;
+}
+
+.tags-edit-container .tag-input-row .btn {
+  min-width: 35px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.edit-actions .save-btn,
+.edit-actions .cancel-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  border-radius: 6px;
+}
+
+.no-tags {
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* Inline tag editor for editQR.html */
+.inline-tag-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #f8f9fa;
+  width: 450px;
+  align-self: flex-start;
+}
+
+.inline-tag-editor .tag-input-row {
+  gap: 8px;
+}
+
+.inline-tag-editor .tag-input-row .input {
+  flex: 3;
+  min-width: 300px;
+}
+
+.inline-tag-editor .tag-input-row .color-picker {
+  width: 200px;
+  height: 32px;
+}
+
+.inline-tag-editor .tag-input-row .btn {
+  min-width: 40px;
+  padding: 6px 8px;
+  font-size: 11px;
+}
+
+.inline-tag-editor .tags-display {
+  min-height: 24px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: white;
+}
+
 .section-description {
   font-size: 13px;
   color: var(--muted);
@@ -502,6 +664,17 @@
   opacity: 0.6;
   transition: all 0.2s ease;
   font-size: 12px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: auto;
+  align-items: center;
+  align-self: center;
 }
 
 .edit-btn:hover {
@@ -534,7 +707,7 @@
   font-size: 12px;
   font-weight: 500;
   transition: all 0.2s ease;
-  margin-left: 4px;
+  margin: 0;
 }
 
 .save-btn {

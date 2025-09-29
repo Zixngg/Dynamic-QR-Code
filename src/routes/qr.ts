@@ -259,17 +259,24 @@ export default async function qrRoutes(app: FastifyInstance) {
       const logoSizePct = Math.max(10, Math.min(40, Number(body.logoSizePct || 22)));
 
       const design = JSON.stringify({ fg, bg, ec, format, logoUrl, logoSizePct });
+      
+      // parse tags from form data
+      console.log('Raw tags from form:', body.tags);
+      const tags = body.tags ? JSON.parse(body.tags) : [];
+      console.log('Parsed tags:', tags);
+      const tagsJson = JSON.stringify(tags);
 
-      // insert QR code with design
+      // insert QR code with design and tags
       const qrIns = await pool.request()
         .input('uid', SQL.UniqueIdentifier, user.sub)
         .input('name', SQL.NVarChar(200), name)
         .input('slug', SQL.NVarChar(64), slug)
         .input('design', SQL.NVarChar(SQL.MAX), design)
+        .input('tags', SQL.NVarChar(SQL.MAX), tagsJson)
         .query(`
-          INSERT INTO dbo.[QR_Code] (User_Id, Name, Slug, Design)
+          INSERT INTO dbo.[QR_Code] (User_Id, Name, Slug, Design, Tags)
           OUTPUT inserted.Id
-          VALUES (@uid, @name, @slug, @design);
+          VALUES (@uid, @name, @slug, @design, @tags);
         `);
 
       const qrId = qrIns.recordset[0].Id as string;
@@ -437,7 +444,7 @@ export default async function qrRoutes(app: FastifyInstance) {
       const r = await pool.request()
       .input('uid', SQL.UniqueIdentifier, user.sub)
         .query(`
-          SELECT c.Name, c.Slug, c.CreatedAt
+          SELECT c.Name, c.Slug, c.CreatedAt, c.Tags
           FROM dbo.[QR_Code] c
           WHERE c.User_Id = @uid AND c.Archived = 0
           ORDER BY c.CreatedAt DESC
@@ -511,6 +518,15 @@ export default async function qrRoutes(app: FastifyInstance) {
         inputs.newSlug = { type: SQL.NVarChar, value: newSlug };
       }
 
+      const body = req.body as any;
+      if (body.tags !== undefined) {
+        console.log('Raw tags from update:', body.tags);
+        const tags = Array.isArray(body.tags) ? body.tags : [];
+        console.log('Processed tags for update:', tags);
+        updates.push('Tags = @tags');
+        inputs.tags = { type: SQL.NVarChar(SQL.MAX), value: JSON.stringify(tags) };
+      }
+
       if (updates.length === 0) {
         return reply.code(400).send('No updates provided');
       }
@@ -552,7 +568,7 @@ export default async function qrRoutes(app: FastifyInstance) {
         .input('slug', SQL.NVarChar(64), slug)
       .input('uid', SQL.UniqueIdentifier, user.sub)
       .query(`
-          SELECT TOP 1 c.Name, c.Slug, c.Design, t.Url, t.UTM
+          SELECT TOP 1 c.Name, c.Slug, c.Design, c.Tags, t.Url, t.UTM
           FROM dbo.[QR_Code] c
           INNER JOIN dbo.[QR_Target] t ON c.CurrentTargetId = t.Id
           WHERE c.Slug = @slug AND c.User_Id = @uid AND c.Archived = 0
@@ -562,17 +578,25 @@ export default async function qrRoutes(app: FastifyInstance) {
         return reply.code(404).send('Not found');
       }
 
-      const { Name, Slug, Design, Url, UTM } = r.recordset[0];
+      const { Name, Slug, Design, Tags, Url, UTM } = r.recordset[0];
       const design = JSON.parse(Design || '{}');
       const utm = JSON.parse(UTM || '{}');
+
+      console.log('QR data from database:', {
+        Name,
+        Slug,
+        Tags,
+        TagsType: typeof Tags
+      });
 
       return reply.send({
         Name,
         Slug,
         Url,
-      Design: design,
-      UTM: utm
-    });
+        Design: design,
+        Tags: Tags,
+        UTM: utm
+      });
     } catch (error) {
       console.error('Data fetch failed:', error);
       return reply.code(500).send('Data fetch failed');
@@ -629,7 +653,7 @@ export default async function qrRoutes(app: FastifyInstance) {
     const r = await pool.request()
     .input('slug', SQL.NVarChar(64), slug)
     .query(`
-        SELECT TOP 1 t.Url, t.UTM, c.Name
+        SELECT TOP 1 t.Url, t.UTM, c.Name, c.Tags
         FROM dbo.[QR_Code] c
         INNER JOIN dbo.[QR_Target] t ON c.CurrentTargetId = t.Id
         WHERE c.Slug = @slug AND c.Archived = 0

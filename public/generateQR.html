@@ -93,6 +93,23 @@
           <input class="input" type="url" name="url" placeholder="https://example.com/landing-page" required>
           <div class="help">The webpage users will see after scanning your QR code. UTM parameters will be added automatically if configured below.</div>
         </div>
+        
+        <div class="row">
+          <label class="input-label">
+            <span class="label-text">Tags</span>
+            <span class="label-optional">Optional</span>
+          </label>
+          <div class="tags-input-container">
+            <div class="tags-display" id="tagsDisplay"></div>
+            <div class="tag-input-row">
+              <input type="text" id="tagNameInput" placeholder="Tag name" class="input">
+              <input type="color" id="tagColorInput" value="#4ecdc4" class="color-picker">
+              <button type="button" id="addTagBtn" class="btn btn-secondary">Add</button>
+            </div>
+          </div>
+          <div class="help">Add tags to organize your QR codes. You can filter by tags later.</div>
+          <input type="hidden" name="tags" id="tagsHidden">
+        </div>
       </div>
 
       <!-- Section 2: UTM Tracking -->
@@ -304,6 +321,65 @@
     msgEl.className='error'; 
     msgEl.textContent=params.get('error'); 
   }
+
+  // Tag management
+  let tags = [];
+  
+  function addTag() {
+    const nameInput = document.getElementById('tagNameInput');
+    const colorInput = document.getElementById('tagColorInput');
+    const name = nameInput.value.trim();
+    
+    if (!name) return;
+    
+    // Check if tag already exists
+    if (tags.some(tag => tag.name.toLowerCase() === name.toLowerCase())) {
+      alert('Tag already exists');
+      return;
+    }
+    
+    tags.push({
+      name: name,
+      color: colorInput.value
+    });
+    
+    updateTagsDisplay();
+    updateTagsHidden();
+    
+    nameInput.value = '';
+    colorInput.value = '#4ecdc4';
+  }
+  
+  function removeTag(index) {
+    tags.splice(index, 1);
+    updateTagsDisplay();
+    updateTagsHidden();
+  }
+  
+  function updateTagsDisplay() {
+    const display = document.getElementById('tagsDisplay');
+    display.innerHTML = tags.map((tag, index) => `
+      <span class="tag" style="background-color: ${tag.color}; color: white;">
+        ${tag.name}
+        <button type="button" onclick="removeTag(${index})" class="tag-remove">×</button>
+      </span>
+    `).join('');
+  }
+  
+  function updateTagsHidden() {
+    const tagsJson = JSON.stringify(tags);
+    document.getElementById('tagsHidden').value = tagsJson;
+    console.log('Updated hidden tags field:', tagsJson);
+  }
+  
+  // Tag input event listeners
+  document.getElementById('addTagBtn').addEventListener('click', addTag);
+  document.getElementById('tagNameInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addTag();
+    }
+  });
 
   // Progress indicator
   function updateProgressIndicator() {
@@ -578,6 +654,9 @@
     });
     
     form.addEventListener('submit', (e) => {
+      // Ensure tags are updated before submission
+      updateTagsHidden();
+      
       let isValid = true;
       inputs.forEach(input => {
         if (!validateField({ target: input })) {

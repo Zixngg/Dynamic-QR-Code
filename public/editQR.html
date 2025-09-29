@@ -62,6 +62,13 @@
               <span id="qrSlug" class="editable-field" data-field="slug">—</span>
               <button class="edit-btn" onclick="editField('slug')" title="Edit slug">✏️</button>
             </div>
+            <div class="info-item" style="margin-bottom: 8px;">
+              <strong>Tags:</strong> 
+              <div id="qrTags" class="editable-field" data-field="tags" style="display: inline-block;">
+                <span class="no-tags">No tags</span>
+              </div>
+              <button class="edit-btn" onclick="editField('tags')" title="Edit tags">✏️</button>
+            </div>
             <div style="margin-bottom: 8px;"><a id="qrDyn" class="link" href="#" target="_blank">Open dynamic link</a></div>
             <div style="margin-bottom: 12px;">
               <a id="dlLink" class="link" href="#" download>Download QR Code (SVG)</a>
@@ -303,6 +310,37 @@
       document.getElementById('qrName').textContent = qrData.Name;
       document.getElementById('qrSlug').textContent = qrData.Slug;
       document.getElementById('url').value = qrData.Url || '';
+      
+      // Populate tags
+      console.log('Raw qrData.Tags:', qrData.Tags);
+      console.log('Type of qrData.Tags:', typeof qrData.Tags);
+      
+      let tags = [];
+      if (qrData.Tags) {
+        if (typeof qrData.Tags === 'string') {
+          try {
+            tags = JSON.parse(qrData.Tags);
+            console.log('Parsed tags from string:', tags);
+          } catch (e) {
+            console.error('Error parsing tags:', e);
+            tags = [];
+          }
+        } else if (Array.isArray(qrData.Tags)) {
+          tags = qrData.Tags;
+          console.log('Tags already array:', tags);
+        }
+      }
+      
+      console.log('Final tags for display:', tags);
+      
+      if (tags && tags.length > 0) {
+        const tagsContainer = document.getElementById('qrTags');
+        tagsContainer.innerHTML = tags.map(tag => 
+          `<span class="tag" style="background-color: ${tag.color}; color: white; margin-right: 4px;">${tag.name}</span>`
+        ).join('');
+      } else {
+        document.getElementById('qrTags').innerHTML = '<span class="no-tags">No tags</span>';
+      }
       
       // Store original slug for reference
       originalSlug = qrData.Slug;
@@ -663,42 +701,207 @@
   // Edit field function
   function editField(fieldType) {
     const fieldElement = document.getElementById(`qr${fieldType.charAt(0).toUpperCase() + fieldType.slice(1)}`);
-    const originalValue = fieldElement.textContent;
     
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.value = originalValue;
-    input.className = 'edit-input';
-    input.maxLength = fieldType === 'name' ? 100 : 50;
+    if (fieldType === 'tags') {
+      // Parse existing tags
+      let currentTags = [];
+      if (qrData.Tags) {
+        if (typeof qrData.Tags === 'string') {
+          try {
+            currentTags = JSON.parse(qrData.Tags);
+          } catch (e) {
+            console.error('Error parsing tags:', e);
+            currentTags = [];
+          }
+        } else if (Array.isArray(qrData.Tags)) {
+          currentTags = qrData.Tags;
+        }
+      }
+      
+      const container = document.createElement('div');
+      container.className = 'inline-tag-editor';
+      container.innerHTML = `
+        <div class="tag-input-row">
+          <input type="text" id="editTagNameInput" placeholder="Tag name" class="input">
+          <input type="color" id="editTagColorInput" value="#4ecdc4" class="color-picker">
+          <button type="button" id="editAddTagBtn" class="btn btn-secondary">Add</button>
+        </div>
+        <div class="tags-display" id="editTagsDisplay"></div>
+      `;
+      
+      const actionsContainer = document.createElement('div');
+      actionsContainer.className = 'edit-actions';
+      
+      const saveBtn = document.createElement('button');
+      saveBtn.className = 'save-btn';
+      saveBtn.innerHTML = '✓';
+      saveBtn.onclick = () => saveField(fieldType, container, saveBtn);
+      
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'cancel-btn';
+      cancelBtn.innerHTML = '✕';
+      cancelBtn.onclick = () => cancelFieldEdit(fieldElement, currentTags);
+      
+      actionsContainer.appendChild(saveBtn);
+      actionsContainer.appendChild(cancelBtn);
+      
+      fieldElement.style.display = 'none';
+      fieldElement.parentElement.querySelector('.edit-btn').style.display = 'none';
+      
+      fieldElement.parentElement.appendChild(container);
+      fieldElement.parentElement.appendChild(actionsContainer);
+      
+      // Initialize tag editing
+      editTags = [...currentTags];
+      updateEditTagsDisplay();
+      
+      // Add event listeners
+      document.getElementById('editAddTagBtn').addEventListener('click', addEditTag);
+      document.getElementById('editTagNameInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          addEditTag();
+        }
+      });
+      
+      document.getElementById('editTagNameInput').focus();
+    } else {
+      const originalValue = fieldElement.textContent;
+      
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = originalValue;
+      input.className = 'edit-input';
+      input.maxLength = fieldType === 'name' ? 100 : 50;
+      
+      if (fieldType === 'slug') {
+        input.pattern = '[a-zA-Z0-9-_]+';
+        input.title = 'Only letters, numbers, hyphens, and underscores allowed';
+      }
+      
+      const actionsContainer = document.createElement('div');
+      actionsContainer.className = 'edit-actions';
+      
+      const saveBtn = document.createElement('button');
+      saveBtn.className = 'save-btn';
+      saveBtn.innerHTML = '✓';
+      saveBtn.onclick = () => saveField(fieldType, input, saveBtn);
+      
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'cancel-btn';
+      cancelBtn.innerHTML = '✕';
+      cancelBtn.onclick = () => cancelFieldEdit(fieldElement, originalValue);
+      
+      actionsContainer.appendChild(saveBtn);
+      actionsContainer.appendChild(cancelBtn);
+      
+      fieldElement.style.display = 'none';
+      fieldElement.parentElement.querySelector('.edit-btn').style.display = 'none';
+      
+      fieldElement.parentElement.appendChild(input);
+      fieldElement.parentElement.appendChild(actionsContainer);
+      
+      input.focus();
+      input.select();
+    }
+  }
+
+  // Tag editing variables
+  let editTags = [];
+  
+  function addEditTag() {
+    const nameInput = document.getElementById('editTagNameInput');
+    const colorInput = document.getElementById('editTagColorInput');
+    const name = nameInput.value.trim();
     
-    if (fieldType === 'slug') {
-      input.pattern = '[a-zA-Z0-9-_]+';
-      input.title = 'Only letters, numbers, hyphens, and underscores allowed';
+    if (!name) return;
+    
+    // Check if tag already exists
+    if (editTags.some(tag => tag.name.toLowerCase() === name.toLowerCase())) {
+      alert('Tag already exists');
+      return;
     }
     
-    const saveBtn = document.createElement('button');
-    saveBtn.className = 'save-btn';
-    saveBtn.innerHTML = '✓';
-    saveBtn.onclick = () => saveField(fieldType, input, saveBtn);
+    editTags.push({
+      name: name,
+      color: colorInput.value
+    });
     
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'cancel-btn';
-    cancelBtn.innerHTML = '✕';
-    cancelBtn.onclick = () => cancelFieldEdit(fieldElement, originalValue);
+    updateEditTagsDisplay();
     
-    fieldElement.style.display = 'none';
-    fieldElement.parentElement.querySelector('.edit-btn').style.display = 'none';
-    
-    fieldElement.parentElement.appendChild(input);
-    fieldElement.parentElement.appendChild(saveBtn);
-    fieldElement.parentElement.appendChild(cancelBtn);
-    
-    input.focus();
-    input.select();
+    nameInput.value = '';
+    colorInput.value = '#4ecdc4';
+  }
+  
+  function removeEditTag(index) {
+    editTags.splice(index, 1);
+    updateEditTagsDisplay();
+  }
+  
+  function updateEditTagsDisplay() {
+    const display = document.getElementById('editTagsDisplay');
+    display.innerHTML = editTags.map((tag, index) => `
+      <span class="tag" style="background-color: ${tag.color}; color: white;">
+        ${tag.name}
+        <button type="button" onclick="removeEditTag(${index})" class="tag-remove">×</button>
+      </span>
+    `).join('');
   }
 
   // Save field function
   async function saveField(fieldType, input, saveBtn) {
+    if (fieldType === 'tags') {
+      // Handle tag saving
+      const fieldElement = document.getElementById(`qr${fieldType.charAt(0).toUpperCase() + fieldType.slice(1)}`);
+      
+      try {
+        console.log('Sending tags update:', editTags);
+        const response = await fetch(`/api/qr/${encodeURIComponent(originalSlug)}/update`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ tags: editTags })
+        });
+
+        if (response.ok) {
+          // Update the display
+          if (editTags.length > 0) {
+            fieldElement.innerHTML = editTags.map(tag => 
+              `<span class="tag" style="background-color: ${tag.color}; color: white; margin-right: 4px;">${tag.name}</span>`
+            ).join('');
+          } else {
+            fieldElement.innerHTML = '<span class="no-tags">No tags</span>';
+          }
+          
+          // Update qrData
+          qrData.Tags = editTags;
+          
+          // Show success message
+          msgEl.className = 'success';
+          msgEl.textContent = 'Tags updated successfully';
+          
+          // Clean up
+          const container = fieldElement.parentElement.querySelector('.inline-tag-editor');
+          const actionsContainer = fieldElement.parentElement.querySelector('.edit-actions');
+          
+          if (container) container.remove();
+          if (actionsContainer) actionsContainer.remove();
+          
+          fieldElement.style.display = 'inline-block';
+          fieldElement.parentElement.querySelector('.edit-btn').style.display = 'inline-block';
+        } else {
+          const errorText = await response.text();
+          msgEl.className = 'error';
+          msgEl.textContent = `Failed to update tags: ${errorText}`;
+        }
+      } catch (error) {
+        console.error('Error updating tags:', error);
+        msgEl.className = 'error';
+        msgEl.textContent = `Error updating tags: ${error.message}`;
+      }
+      return;
+    }
+    
     const newValue = input.value.trim();
     const fieldElement = document.getElementById(`qr${fieldType.charAt(0).toUpperCase() + fieldType.slice(1)}`);
     
@@ -737,6 +940,10 @@
       // Update the field
       fieldElement.textContent = newValue;
       
+      // Show success message
+      msgEl.className = 'success';
+      msgEl.textContent = `${fieldType.charAt(0).toUpperCase() + fieldType.slice(1)} updated successfully`;
+      
       // If slug changed, update the page URL and all references
       if (fieldType === 'slug') {
         originalSlug = newValue;
@@ -759,7 +966,8 @@
       
       cancelFieldEdit(fieldElement, newValue);
     } catch (error) {
-      alert(`Failed to update ${fieldType}: ` + error.message);
+      msgEl.className = 'error';
+      msgEl.textContent = `Failed to update ${fieldType}: ${error.message}`;
       saveBtn.disabled = false;
       saveBtn.innerHTML = '✓';
     }
@@ -767,14 +975,29 @@
 
   // Cancel field edit
   function cancelFieldEdit(fieldElement, originalValue) {
-    fieldElement.style.display = '';
-    fieldElement.textContent = originalValue;
-    
-    const editBtn = fieldElement.parentElement.querySelector('.edit-btn');
-    editBtn.style.display = '';
-    
-    // Remove input and buttons
-    fieldElement.parentElement.querySelectorAll('.edit-input, .save-btn, .cancel-btn').forEach(el => el.remove());
+    if (Array.isArray(originalValue)) {
+      // Handle tag cancellation
+      const container = fieldElement.parentElement.querySelector('.inline-tag-editor');
+      const saveBtn = fieldElement.parentElement.querySelector('.save-btn');
+      const cancelBtn = fieldElement.parentElement.querySelector('.cancel-btn');
+      
+      if (container) container.remove();
+      if (saveBtn) saveBtn.remove();
+      if (cancelBtn) cancelBtn.remove();
+      
+      fieldElement.style.display = 'inline-block';
+      fieldElement.parentElement.querySelector('.edit-btn').style.display = 'inline-block';
+    } else {
+      // Handle regular field cancellation
+      fieldElement.style.display = '';
+      fieldElement.textContent = originalValue;
+      
+      const editBtn = fieldElement.parentElement.querySelector('.edit-btn');
+      editBtn.style.display = '';
+      
+      // Remove input and buttons
+      fieldElement.parentElement.querySelectorAll('.edit-input, .edit-actions').forEach(el => el.remove());
+    }
   }
 </script>
 
