@@ -25,7 +25,7 @@
     <div class="profile-menu">
       <button type="button" onclick="toggleProfileMenu()">Profile ▾</button>
       <div class="profile-dropdown" id="profileDropdown">
-        <a href="/profile.html">View Profile</a>
+        <a href="./profile.html">View Profile</a>
         <form action="/auth/logout" method="post"><button type="submit">Logout</button></form>
       </div>
     </div>
@@ -36,92 +36,230 @@
   <div class="grid wide">
     <!-- LEFT: form -->
     <form class="card" id="createForm" action="/qr/create" method="post">
-      <h1>Generate Dynamic QR</h1>
-      <p class="sub">Design your code and see a live preview. The image stays the same even if you change the destination later.</p>
+      <div class="form-header">
+        <h1>Generate Dynamic QR</h1>
+        <p class="sub">Design your code and see a live preview. The image stays the same even if you change the destination later.</p>
+        <div class="progress-indicator">
+          <div class="progress-step active" data-step="1">
+            <span class="step-number">1</span>
+            <span class="step-label">Basic Info</span>
+          </div>
+          <div class="progress-step" data-step="2">
+            <span class="step-number">2</span>
+            <span class="step-label">Design</span>
+          </div>
+          <div class="progress-step" data-step="3">
+            <span class="step-number">3</span>
+            <span class="step-label">Create</span>
+          </div>
+        </div>
+      </div>
 
       <div id="form-msg"></div>
 
-      <div class="row">
-        <label>Name</label>
-        <input class="input" type="text" name="name" placeholder="e.g., Summer Promo" required>
-        <div class="help">For your reference in the list.</div>
-      </div>
+      <!-- Section 1: Basic Information -->
+      <div class="form-section" data-section="1">
+        <div class="section-header">
+          <h3>📝 Basic Information</h3>
+          <span class="section-badge">Required</span>
+        </div>
+        
+        <div class="row">
+          <label class="input-label">
+            <span class="label-text">QR Code Name</span>
+            <span class="label-required">*</span>
+          </label>
+          <input class="input" type="text" name="name" placeholder="e.g., Summer Promo 2024" required>
+          <div class="help">Give your QR code a memorable name for easy identification in your dashboard.</div>
+        </div>
 
-      <div class="row">
-        <label>Slug (optional)</label>
-        <input class="input" type="text" name="slug" placeholder="letters, numbers or -">
-        <div class="help">If blank, we’ll generate one (e.g., abc123). Your dynamic link will be <code>/r/&lt;slug&gt;</code>.</div>
-      </div>
+        <div class="row">
+          <label class="input-label">
+            <span class="label-text">Custom Short Link</span>
+            <span class="label-optional">Optional</span>
+          </label>
+          <div class="input-with-prefix">
+            <span class="input-prefix">yourdomain.com/r/</span>
+            <input class="input" type="text" name="slug" placeholder="summer-promo" pattern="[a-zA-Z0-9\-]+">
+          </div>
+          <div class="help">Create a custom short link. If left blank, we'll generate one automatically (e.g., abc123).</div>
+        </div>
 
-      <div class="row">
-        <label>Destination URL</label>
-        <input class="input" type="url" name="url" placeholder="https://example.com/landing" required>
-        <div class="help">The page users see after scanning. UTM tags are added automatically if you set them below.</div>
-      </div>
-
-      <div class="row row-inline">
-        <div>
-          <label>utm_source</label>
-          <input class="input" type="text" name="utm_source" placeholder="e.g., flyer">
-        </div>
-        <div>
-          <label>utm_medium</label>
-          <input class="input" type="text" name="utm_medium" placeholder="e.g., qr">
-        </div>
-        <div>
-          <label>utm_campaign</label>
-          <input class="input" type="text" name="utm_campaign" placeholder="e.g., summer2025">
-        </div>
-      </div>
-
-      <div class="row row-inline">
-        <div>
-          <label>Foreground</label>
-          <input class="input" type="color" name="fg" value="#0b3d91">
-        </div>
-        <div>
-          <label>Background</label>
-          <input class="input" type="color" name="bg" value="#ffffff">
-        </div>
-        <div>
-          <label>Error correction</label>
-          <select class="input" name="ec">
-            <option value="L">L (7%)</option>
-            <option value="M" selected>M (15%)</option>
-            <option value="Q">Q (25%)</option>
-            <option value="H">H (30%)</option>
-          </select>
-        </div>
-        <div>
-          <label>Format</label>
-          <select class="input" name="format">
-            <option value="svg" selected>SVG</option>
-            <option value="png" disabled>PNG (coming soon)</option>
-          </select>
+        <div class="row">
+          <label class="input-label">
+            <span class="label-text">Destination URL</span>
+            <span class="label-required">*</span>
+          </label>
+          <input class="input" type="url" name="url" placeholder="https://example.com/landing-page" required>
+          <div class="help">The webpage users will see after scanning your QR code. UTM parameters will be added automatically if configured below.</div>
         </div>
       </div>
 
-      <div class="row">
-        <label>Center logo (optional)</label>
-        <div class="logo-row">
-          <input type="file" id="logoInput" accept=".png,.jpg,.jpeg,.svg" />
+      <!-- Section 2: UTM Tracking -->
+      <div class="form-section" data-section="1">
+        <div class="section-header">
+          <h3>📊 UTM Tracking</h3>
+          <span class="section-badge optional">Optional</span>
+        </div>
+        <div class="section-description">
+          Track your QR code performance with UTM parameters. These help you identify traffic sources in Google Analytics.
+        </div>
+        
+        <div class="row row-inline">
+          <div class="input-group">
+            <label class="input-label">utm_source</label>
+            <input class="input" type="text" name="utm_source" placeholder="e.g., flyer, poster, business-card">
+            <div class="help">Where did users find this QR code?</div>
+          </div>
+          <div class="input-group">
+            <label class="input-label">utm_medium</label>
+            <input class="input" type="text" name="utm_medium" placeholder="e.g., qr, print, digital">
+            <div class="help">What type of medium?</div>
+          </div>
+          <div class="input-group">
+            <label class="input-label">utm_campaign</label>
+            <input class="input" type="text" name="utm_campaign" placeholder="e.g., summer2024, launch-event">
+            <div class="help">What campaign is this for?</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 3: Design & Appearance -->
+      <div class="form-section" data-section="2">
+        <div class="section-header">
+          <h3>🎨 Design & Appearance</h3>
+          <span class="section-badge">Customize</span>
+        </div>
+        
+        <div class="design-grid">
+          <div class="design-group">
+            <label class="input-label">Colors</label>
+            <div class="color-inputs">
+              <div class="color-input">
+                <label class="color-label">Foreground</label>
+                <input class="input color-picker" type="color" name="fg" value="#0b3d91">
+                <span class="color-value">#0b3d91</span>
+              </div>
+              <div class="color-input">
+                <label class="color-label">Background</label>
+                <input class="input color-picker" type="color" name="bg" value="#ffffff">
+                <span class="color-value">#ffffff</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="design-group">
+            <label class="input-label">Error Correction</label>
+            <select class="input" name="ec">
+              <option value="L">L (7%) - Low</option>
+              <option value="M" selected>M (15%) - Medium</option>
+              <option value="Q">Q (25%) - High</option>
+              <option value="H">H (30%) - Highest</option>
+            </select>
+            <div class="help">Higher levels allow more damage before the QR becomes unreadable.</div>
+          </div>
+
+          <div class="design-group">
+            <label class="input-label">Output Format</label>
+            <select class="input" name="format">
+              <option value="svg" selected>SVG - Scalable Vector</option>
+              <option value="png" disabled>PNG - Raster Image (Coming Soon)</option>
+            </select>
+            <div class="help">SVG is recommended for web use as it scales perfectly.</div>
+          </div>
+        </div>
+
+        <div class="row">
+          <label class="input-label">
+            <span class="label-text">Center Logo</span>
+            <span class="label-optional">Optional</span>
+          </label>
+          <div class="logo-upload-area">
+            <div class="logo-upload-box" id="logoUploadBox">
+              <div class="upload-icon">📁</div>
+              <div class="upload-text">
+                <span class="upload-title">Click to upload logo</span>
+                <span class="upload-subtitle">PNG, JPG, SVG up to 5MB</span>
+              </div>
+              <input type="file" id="logoInput" accept=".png,.jpg,.jpeg,.svg" style="display: none;" />
+            </div>
+            <div class="logo-preview" id="logoPreview" style="display: none;">
+              <img id="logoThumb" alt="logo preview">
+              <div class="logo-controls">
+                <button type="button" class="btn-remove-logo" id="removeLogo">✕</button>
+                <div class="logo-size-control">
+                  <label>Size: </label>
+                  <input class="input" type="number" name="logoSizePct" id="logoSizePct" min="10" max="40" value="22">
+                  <span>%</span>
+                </div>
+              </div>
+            </div>
+          </div>
           <input type="hidden" name="logoUrl" id="logoUrl">
-          <img id="logoThumb" alt="logo" style="display:none;">
-          <input class="input" type="number" name="logoSizePct" id="logoSizePct" min="10" max="40" value="22" style="width:110px" title="Logo size (%)">
+          <div class="help">Add your logo to the center of the QR code. Recommended size: 15-25% for best readability.</div>
         </div>
-        <div class="help">We’ll place your logo at the center. Try 15–25% for readability.</div>
       </div>
 
-      <button class="btn" type="submit">Create QR</button>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">
+          <span class="btn-icon">✨</span>
+          Create QR Code
+        </button>
+        <div class="form-note">
+          <span class="note-icon">💡</span>
+          You can always edit these settings later from your dashboard.
+        </div>
+      </div>
     </form>
 
     <!-- RIGHT: live preview -->
     <div class="preview-card">
-      <h2>Live Preview</h2>
-      <div class="preview-box">
-        <img id="previewImg" alt="QR preview" />
+      <div class="preview-header">
+        <h2>🎯 Live Preview</h2>
+        <div class="preview-status">
+          <span class="status-indicator" id="previewStatus">Ready</span>
+        </div>
       </div>
-      <div class="help">This is a visual preview. The encoded data shown here is a placeholder.</div>
+      
+      <div class="preview-box">
+        <div class="qr-container">
+          <div id="previewSvg" class="qr-svg-container"></div>
+          <div class="qr-overlay" id="qrOverlay">
+            <div class="scan-hint">📱 Scan to test</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="preview-info">
+        <div class="info-item">
+          <span class="info-label">Short Link:</span>
+          <span class="info-value" id="previewShortLink">yourdomain.com/r/abc123</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Destination:</span>
+          <span class="info-value" id="previewDestination">https://example.com</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Format:</span>
+          <span class="info-value" id="previewFormat">SVG</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Error Correction:</span>
+          <span class="info-value" id="previewEC">M (15%)</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Colors:</span>
+          <span class="info-value" id="previewColors">#0b3d91 on #ffffff</span>
+        </div>
+      </div>
+      
+      <div class="preview-actions">
+        <button class="btn btn-secondary" id="downloadPreview" disabled>
+          <span class="btn-icon">⬇️</span>
+          Download Preview
+        </button>
+        <div class="help">Preview updates automatically as you make changes. Download will be available after creation.</div>
+      </div>
     </div>
   </div>
 </main>
@@ -141,41 +279,414 @@
   // messages
   const params = new URLSearchParams(location.search);
   const msgEl = document.getElementById('form-msg');
-  if (params.get('error')) { msgEl.className='error'; msgEl.textContent=params.get('error'); }
+  if (params.get('error')) { 
+    msgEl.className='error'; 
+    msgEl.textContent=params.get('error'); 
+  }
 
-  // live preview (GET /qr/preview?params)
+  // Progress indicator
+  function updateProgressIndicator() {
+    const name = document.querySelector('[name="name"]').value.trim();
+    const url = document.querySelector('[name="url"]').value.trim();
+    const fg = document.querySelector('[name="fg"]').value;
+    const bg = document.querySelector('[name="bg"]').value;
+    
+    const step1 = document.querySelector('[data-step="1"]');
+    const step2 = document.querySelector('[data-step="2"]');
+    const step3 = document.querySelector('[data-step="3"]');
+    
+    if (name && url) {
+      step1.classList.add('completed');
+      step2.classList.add('active');
+    } else {
+      step1.classList.remove('completed');
+      step2.classList.remove('active');
+    }
+    
+    if (name && url && fg && bg) {
+      step2.classList.add('completed');
+      step3.classList.add('active');
+    } else {
+      step2.classList.remove('completed');
+      step3.classList.remove('active');
+    }
+  }
+
+  // Color picker updates
+  function updateColorValues() {
+    const fgInput = document.querySelector('[name="fg"]');
+    const bgInput = document.querySelector('[name="bg"]');
+    const fgValue = fgInput.nextElementSibling;
+    const bgValue = bgInput.nextElementSibling;
+    
+    fgValue.textContent = fgInput.value;
+    bgValue.textContent = bgInput.value;
+  }
+
+  // Live preview with enhanced info
   function refreshPreview() {
     const fg = document.querySelector('[name="fg"]').value;
     const bg = document.querySelector('[name="bg"]').value;
     const ec = document.querySelector('[name="ec"]').value;
+    const format = document.querySelector('[name="format"]').value;
     const logoUrl = document.getElementById('logoUrl').value || '';
     const logoSizePct = document.getElementById('logoSizePct').value || '22';
+    const url = document.querySelector('[name="url"]').value || '';
+    const slug = document.querySelector('[name="slug"]').value || '';
+    const utmSource = document.querySelector('[name="utm_source"]').value || '';
+    const utmMedium = document.querySelector('[name="utm_medium"]').value || '';
+    const utmCampaign = document.querySelector('[name="utm_campaign"]').value || '';
 
-    const qs = new URLSearchParams({ fg, bg, ec, logoUrl, logoSizePct });
-    document.getElementById('previewImg').src = '/qr/preview?' + qs.toString();
+    // Build the preview URL with actual destination
+    let previewUrl = url;
+    if (previewUrl) {
+      // Add UTM parameters if provided
+      const utmParams = new URLSearchParams();
+      if (utmSource) utmParams.set('utm_source', utmSource);
+      if (utmMedium) utmParams.set('utm_medium', utmMedium);
+      if (utmCampaign) utmParams.set('utm_campaign', utmCampaign);
+      
+      if (utmParams.toString()) {
+        previewUrl += (previewUrl.includes('?') ? '&' : '?') + utmParams.toString();
+      }
+    }
+
+    const qs = new URLSearchParams({ 
+      fg, 
+      bg, 
+      ec, 
+      logoUrl, 
+      logoSizePct,
+      url: previewUrl || 'https://example.com/preview' // Fallback for preview
+    });
+    
+    const previewSvg = document.getElementById('previewSvg');
+    const previewStatus = document.getElementById('previewStatus');
+    
+    // Debug logging
+    console.log('Preview request:', {
+      fg, bg, ec, logoUrl: logoUrl ? (logoUrl.substring(0, 50) + '...') : 'none', 
+      logoSizePct, previewUrl
+    });
+    
+    // Show loading state
+    previewStatus.textContent = 'Loading...';
+    previewStatus.className = 'status-indicator';
+    
+    // Update preview SVG with error handling
+    const previewUrl_full = '/qr/preview?' + qs.toString();
+    console.log('Loading preview from:', previewUrl_full);
+    
+    fetch(previewUrl_full)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        return response.text();
+      })
+      .then(svgContent => {
+        previewSvg.innerHTML = svgContent;
+        previewStatus.textContent = 'Ready';
+        previewStatus.className = 'status-indicator';
+        console.log('Preview loaded successfully');
+        
+        // Debug: Check if SVG contains image elements
+        const svgElement = previewSvg.querySelector('svg');
+        const imageElements = svgElement ? svgElement.querySelectorAll('image') : [];
+        console.log('SVG image elements found:', imageElements.length);
+        imageElements.forEach((img, index) => {
+          console.log(`Image ${index}:`, {
+            href: img.getAttribute('href')?.substring(0, 50) + '...',
+            x: img.getAttribute('x'),
+            y: img.getAttribute('y'),
+            width: img.getAttribute('width'),
+            height: img.getAttribute('height')
+          });
+        });
+      })
+      .catch(error => {
+        previewStatus.textContent = 'Preview Error';
+        previewStatus.className = 'status-indicator error';
+        console.error('Failed to load QR preview:', error);
+        
+        // Show a placeholder or fallback message
+        const previewBox = document.querySelector('.preview-box');
+        if (previewBox && !previewBox.querySelector('.preview-error')) {
+          const errorDiv = document.createElement('div');
+          errorDiv.className = 'preview-error';
+          errorDiv.innerHTML = `
+            <div style="text-align: center; color: var(--muted); padding: 20px;">
+              <div style="font-size: 24px; margin-bottom: 8px;">⚠️</div>
+              <div style="font-weight: 500; margin-bottom: 4px;">Preview Unavailable</div>
+              <div style="font-size: 12px;">QR code will be generated when you submit the form</div>
+            </div>
+          `;
+          previewBox.appendChild(errorDiv);
+        }
+      });
+    
+    // Update preview info
+    const shortLinkSlug = slug || 'abc123';
+    const shortLink = `yourdomain.com/r/${shortLinkSlug}`;
+    const destination = previewUrl || 'https://example.com';
+    
+    document.getElementById('previewShortLink').textContent = shortLink;
+    document.getElementById('previewDestination').textContent = destination.length > 30 ? destination.substring(0, 30) + '...' : destination;
+    document.getElementById('previewFormat').textContent = format.toUpperCase();
+    document.getElementById('previewEC').textContent = document.querySelector('[name="ec"] option:checked').textContent;
+    document.getElementById('previewColors').textContent = `${fg} on ${bg}`;
+    
+    // Update progress
+    updateProgressIndicator();
+    updateColorValues();
   }
-  ['fg','bg','ec','logoSizePct'].forEach(name => {
-    document.querySelector(`[name="${name}"]`).addEventListener('change', refreshPreview);
-  });
 
-  // logo upload
-  document.getElementById('logoInput').addEventListener('change', async (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
+  // Enhanced logo upload
+  function setupLogoUpload() {
+    const logoInput = document.getElementById('logoInput');
+    const logoUploadBox = document.getElementById('logoUploadBox');
+    const logoPreview = document.getElementById('logoPreview');
+    const logoThumb = document.getElementById('logoThumb');
+    const removeLogoBtn = document.getElementById('removeLogo');
+    
+    // Click to upload
+    logoUploadBox.addEventListener('click', () => logoInput.click());
+    
+    // Drag and drop
+    logoUploadBox.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      logoUploadBox.classList.add('drag-over');
+    });
+    
+    logoUploadBox.addEventListener('dragleave', () => {
+      logoUploadBox.classList.remove('drag-over');
+    });
+    
+    logoUploadBox.addEventListener('drop', (e) => {
+      e.preventDefault();
+      logoUploadBox.classList.remove('drag-over');
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        logoInput.files = files;
+        handleLogoUpload(files[0]);
+      }
+    });
+    
+    // File input change
+    logoInput.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (file) handleLogoUpload(file);
+    });
+    
+    // Remove logo
+    removeLogoBtn.addEventListener('click', () => {
+      document.getElementById('logoUrl').value = '';
+      logoPreview.style.display = 'none';
+      logoUploadBox.style.display = 'flex';
+      logoInput.value = '';
+      refreshPreview();
+    });
+  }
+
+  async function handleLogoUpload(file) {
+    if (!file) return;
+    
+    // Validate file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB');
+      return;
+    }
+    
     const fd = new FormData();
-    fd.set('file', f);
-    const res = await fetch('/uploads', { method: 'POST', body: fd, credentials: 'include' });
-    if (!res.ok) { alert('Upload failed'); return; }
-    const data = await res.json();
-    document.getElementById('logoUrl').value = data.url;
-    const thumb = document.getElementById('logoThumb');
-    thumb.src = data.url;
-    thumb.style.display = 'block';
+    fd.set('file', file);
+    
+    const previewStatus = document.getElementById('previewStatus');
+    previewStatus.textContent = 'Uploading...';
+    previewStatus.className = 'status-indicator';
+    
+    try {
+      const res = await fetch('/uploads', { method: 'POST', body: fd, credentials: 'include' });
+      if (!res.ok) { 
+        alert('Upload failed. Please try again.'); 
+        previewStatus.textContent = 'Upload Error';
+        previewStatus.className = 'status-indicator error';
+        return; 
+      }
+      
+      const data = await res.json();
+      document.getElementById('logoUrl').value = data.url || data.dataUrl;
+      
+      const logoThumb = document.getElementById('logoThumb');
+      const logoPreview = document.getElementById('logoPreview');
+      const logoUploadBox = document.getElementById('logoUploadBox');
+      
+      logoThumb.src = data.url;
+      logoPreview.style.display = 'block';
+      logoUploadBox.style.display = 'none';
+      
+      // Force refresh preview after successful upload
+      setTimeout(() => {
+        refreshPreview();
+      }, 100);
+      
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Upload failed. Please check your connection and try again.');
+      previewStatus.textContent = 'Upload Error';
+      previewStatus.className = 'status-indicator error';
+    }
+  }
+
+  // Form validation
+  function setupFormValidation() {
+    const form = document.getElementById('createForm');
+    const inputs = form.querySelectorAll('input[required], input[type="url"]');
+    
+    inputs.forEach(input => {
+      input.addEventListener('blur', validateField);
+      input.addEventListener('input', () => {
+        input.classList.remove('error');
+        updateProgressIndicator();
+      });
+    });
+    
+    form.addEventListener('submit', (e) => {
+      let isValid = true;
+      inputs.forEach(input => {
+        if (!validateField({ target: input })) {
+          isValid = false;
+        }
+      });
+      
+      if (!isValid) {
+        e.preventDefault();
+        document.getElementById('previewStatus').textContent = 'Please fix errors';
+        document.getElementById('previewStatus').className = 'status-indicator error';
+      }
+    });
+  }
+
+  function validateField(e) {
+    const input = e.target;
+    const value = input.value.trim();
+    let isValid = true;
+    let errorMessage = '';
+    
+    if (input.hasAttribute('required') && !value) {
+      isValid = false;
+      errorMessage = 'This field is required';
+    } else if (input.type === 'url' && value && !isValidUrl(value)) {
+      isValid = false;
+      errorMessage = 'Please enter a valid URL (e.g., https://example.com)';
+    } else if (input.name === 'slug' && value) {
+      if (!/^[a-zA-Z0-9\-]+$/.test(value)) {
+        isValid = false;
+        errorMessage = 'Only letters, numbers, and hyphens are allowed';
+      } else if (value.length < 3) {
+        isValid = false;
+        errorMessage = 'Slug must be at least 3 characters long';
+      } else if (value.length > 50) {
+        isValid = false;
+        errorMessage = 'Slug must be less than 50 characters';
+      } else if (value.startsWith('-') || value.endsWith('-')) {
+        isValid = false;
+        errorMessage = 'Slug cannot start or end with a hyphen';
+      }
+    }
+    
+    if (!isValid) {
+      input.classList.add('error');
+      // Show error message
+      let errorDiv = input.parentNode.querySelector('.error-message');
+      if (!errorDiv) {
+        errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        input.parentNode.appendChild(errorDiv);
+      }
+      errorDiv.textContent = errorMessage;
+    } else {
+      input.classList.remove('error');
+      // Remove error message
+      const errorDiv = input.parentNode.querySelector('.error-message');
+      if (errorDiv) {
+        errorDiv.remove();
+      }
+    }
+    
+    return isValid;
+  }
+
+  function isValidUrl(string) {
+    try {
+      new URL(string);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // Generate random slug
+  function generateRandomSlug() {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
+  // Auto-generate slug if empty
+  function setupSlugGeneration() {
+    const slugInput = document.querySelector('[name="slug"]');
+    const nameInput = document.querySelector('[name="name"]');
+    
+    // Generate slug from name when name changes
+    nameInput.addEventListener('input', () => {
+      if (!slugInput.value) {
+        const name = nameInput.value.trim().toLowerCase();
+        if (name) {
+          // Convert name to slug format
+          const slug = name
+            .replace(/[^a-z0-9\s-]/g, '') // Remove special chars
+            .replace(/\s+/g, '-') // Replace spaces with hyphens
+            .replace(/-+/g, '-') // Replace multiple hyphens with single
+            .substring(0, 20); // Limit length
+          
+          if (slug && slug.length >= 3) {
+            slugInput.value = slug;
+            refreshPreview();
+          }
+        }
+      }
+    });
+    
+    // Generate random slug if both name and slug are empty
+    slugInput.addEventListener('focus', () => {
+      if (!slugInput.value && !nameInput.value) {
+        slugInput.value = generateRandomSlug();
+        refreshPreview();
+      }
+    });
+  }
+
+  // Initialize everything
+  document.addEventListener('DOMContentLoaded', () => {
+    setupLogoUpload();
+    setupFormValidation();
+    setupSlugGeneration();
+    
+    // Add event listeners for preview updates
+    ['fg','bg','ec','logoSizePct','name','url','slug','utm_source','utm_medium','utm_campaign'].forEach(name => {
+      const element = document.querySelector(`[name="${name}"]`);
+      if (element) {
+        element.addEventListener('change', refreshPreview);
+        element.addEventListener('input', refreshPreview);
+      }
+    });
+    
+    // Initial render
     refreshPreview();
   });
-
-  // first render
-  refreshPreview();
 </script>
 
 </body>

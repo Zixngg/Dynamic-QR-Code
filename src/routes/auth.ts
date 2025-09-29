@@ -4,6 +4,7 @@ import { getPool, SQL } from '../db';
 import { hashPassword, verifyPassword, randomToken, sha256Hex } from '../lib/crypto';
 import { signAccess } from '../lib/jwt';
 import { env } from '../config';
+import { requireAuth } from '../middleware/requireAuth';
 
 const Signup = z.object({
   email: z.string()
@@ -161,5 +162,46 @@ export default async function authRoutes(app: FastifyInstance) {
         .query('DELETE FROM dbo.[Session] WHERE Refresh_Token_Hash=@hash;');
     }
     reply.clearCookie('at', { path: '/' }).clearCookie('rt', { path: '/' }).redirect('/login.html?success=Logged+out');
+  });
+
+  // CHANGE PASSWORD (requires auth)
+  const ChangePassword = z.object({
+    oldPassword: z.string().min(8, { message: 'Password must be at least 8 characters' }),
+    newPassword: z.string().min(8, { message: 'Password must be at least 8 characters' })
+  });
+
+  app.post('/auth/change-password', { preHandler: requireAuth() }, async (req, reply) => {
+    const parsed = ChangePassword.safeParse(req.body);
+    if (!parsed.success) {
+      const msg = parsed.error.issues.map(e => e.message).join(', ');
+      return reply.code(400).send({ error: msg });
+    }
+
+    const user = (req as any).user as { sub: string; email: string };
+    const { oldPassword, newPassword } = parsed.data;
+
+    const pool = await getPool();
+
+    const rs = await pool.request()
+      .input('id', SQL.UniqueIdentifier, user.sub)
+      .query('SELECT TOP 1 Id, Password_Hash FROM dbo.[User] WHERE Id=@id');
+
+    if (!rs.recordset.length) {
+      return reply.code(404).send({ error: 'User not found' });
+    }
+
+    const current = rs.recordset[0];
+    const ok = await verifyPassword(current.Password_Hash, oldPassword);
+    if (!ok) {
+      return reply.code(400).send({ error: 'Current password is incorrect' });
+    }
+
+    const newHash = await hashPassword(newPassword);
+    await pool.request()
+      .input('id', SQL.UniqueIdentifier, user.sub)
+      .input('hash', SQL.NVarChar(300), newHash)
+      .query('UPDATE dbo.[User] SET Password_Hash=@hash WHERE Id=@id');
+
+    return reply.send({ ok: true });
   });
 }

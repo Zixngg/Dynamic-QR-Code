@@ -6,6 +6,8 @@ import type { AccessPayload } from '../lib/jwt';
 // Zehua
 import useragent from 'useragent';
 import geoip from 'geoip-lite';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || 'http://localhost:8080';
 
@@ -24,13 +26,54 @@ function normalizeUrl(u: string) {
   } catch { throw new Error('Invalid URL'); }
 }
 
-function injectLogoIntoSvg(svg: string, logoUrl: string, sizePct = 22): string {
-  const size = 512;
-  const logoSize = Math.round((sizePct / 100) * size);
-  const x = Math.round((size - logoSize) / 2);
-  const y = Math.round((size - logoSize) / 2);
-  const imageTag = `<image href="${logoUrl}" x="${x}" y="${y}" width="${logoSize}" height="${logoSize}" preserveAspectRatio="xMidYMid meet" />`;
-  return svg.replace('</svg>', `${imageTag}</svg>`);
+function injectLogoIntoSvg(
+  svg: string,
+  logoUrl: string,
+  sizePct = 22,
+  debug = false,
+  backgroundColor = '#ffffff',
+  borderColor = '#000000'
+): string {
+  // Determine canvas size from SVG attributes (width/height or viewBox)
+  let canvasSize = 512;
+  let viewBoxSize = 29; // Default QR code viewBox size
+  
+  const whMatch = svg.match(/<svg[^>]*\bwidth=\"(\d+)\"[^>]*\bheight=\"(\d+)\"/i);
+  const vbMatch = svg.match(/viewBox=\"\s*0\s+0\s+(\d+)\s+(\d+)\s*\"/i);
+  
+  if (whMatch) {
+    canvasSize = Math.min(parseInt(whMatch[1], 10) || 512, parseInt(whMatch[2], 10) || 512);
+  }
+  
+  if (vbMatch) {
+    viewBoxSize = Math.min(parseInt(vbMatch[1], 10) || 29, parseInt(vbMatch[2], 10) || 29);
+  }
+  
+  // Calculate logo size and position in viewBox coordinates
+  const logoSizeInViewBox = (sizePct / 100) * viewBoxSize;
+  const x = (viewBoxSize - logoSizeInViewBox) / 2;
+  const y = (viewBoxSize - logoSizeInViewBox) / 2;
+
+  // Ensure xlink namespace exists for broader browser support
+  if (!/xmlns:xlink=/i.test(svg)) {
+    svg = svg.replace(
+      /<svg(\s[^>]*)?>/i,
+      (m) => m.replace('>', ' xmlns:xlink="http://www.w3.org/1999/xlink">')
+    );
+  }
+
+  const debugRect = debug ? `<rect x="${x}" y="${y}" width="${logoSizeInViewBox}" height="${logoSizeInViewBox}" fill="none" stroke="red" stroke-width="0.1" />` : '';
+  const debugText = debug ? `<text x="1" y="2" fill="red" font-size="1">logoSize=${logoSizeInViewBox.toFixed(2)} x=${x.toFixed(2)} y=${y.toFixed(2)}</text>` : '';
+  // Knockout rectangle to improve contrast (expand slightly beyond logo)
+  const pad = Math.max(0.1, logoSizeInViewBox * 0.06);
+  const kx = Math.max(0, x - pad);
+  const ky = Math.max(0, y - pad);
+  const kw = Math.min(viewBoxSize, logoSizeInViewBox + pad * 2);
+  const kh = Math.min(viewBoxSize, logoSizeInViewBox + pad * 2);
+  const knockout = `<rect x="${kx}" y="${ky}" width="${kw}" height="${kh}" rx="${pad}" ry="${pad}" fill="${backgroundColor}" />`;
+  const imageTag = `<image href="${logoUrl}" x="${x}" y="${y}" width="${logoSizeInViewBox}" height="${logoSizeInViewBox}" preserveAspectRatio="xMidYMid meet" />`;
+  const borderRect = `<rect x="${kx}" y="${ky}" width="${kw}" height="${kh}" rx="${pad}" ry="${pad}" fill="none" stroke="${borderColor}" stroke-width="0.1" />`;
+  return svg.replace('</svg>', `${debugRect}${debugText}${knockout}${imageTag}${borderRect}</svg>`);
 }
 
 function getSingaporeRegion(lat: number, lon: number): string | null {
@@ -64,6 +107,66 @@ function getSingaporeRegion(lat: number, lon: number): string | null {
 }
 
 export default async function qrRoutes(app: FastifyInstance) {
+  async function resolveLogoHref(logoUrl: string): Promise<string> {
+    try {
+      if (!logoUrl) return logoUrl;
+      // Inline uploaded files as data URLs to ensure they render inside <img src=SVG>
+      let pathname: string | null = null;
+      if (logoUrl.startsWith('/uploads/')) {
+        pathname = decodeURIComponent(logoUrl);
+      } else if (/^https?:\/\//i.test(logoUrl)) {
+        try {
+          const u = new URL(logoUrl);
+          if (u.pathname.startsWith('/uploads/')) pathname = decodeURIComponent(u.pathname);
+        } catch {}
+      }
+      if (pathname) {
+        const abs = path.join(process.cwd(), 'public', pathname.replace(/^\//, ''));
+        const buf = await fs.readFile(abs).catch((e) => {
+          console.error('Logo read failed', { abs, e: String(e) });
+          throw e;
+        });
+        const ext = path.extname(abs).toLowerCase();
+        const mime = ext === '.png' ? 'image/png' : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : ext === '.svg' ? 'image/svg+xml' : 'application/octet-stream';
+        return `data:${mime};base64,${buf.toString('base64')}`;
+      }
+      return logoUrl;
+    } catch {
+      console.error('resolveLogoHref failed', { logoUrl });
+      return logoUrl;
+    }
+  }
+  // ---------- Live preview (SVG) ----------
+  app.get('/qr/preview', async (req, reply) => {
+    const q = (req.query as any) || {};
+    const fg = String(q.fg || '#0b3d91');
+    const bg = String(q.bg || '#ffffff');
+    const ec = String(q.ec || 'M').toUpperCase();
+    const logoUrl = q.logoUrl ? await resolveLogoHref(String(q.logoUrl)) : '';
+    const logoSizePct = Number(q.logoSizePct || 22);
+    const debug = String(q.debug || '0') === '1';
+
+    console.log('Preview request:', { fg, bg, ec, logoUrl: logoUrl ? 'data:...' : 'none', logoSizePct, debug });
+
+    const ecMap: any = { L: 'low', M: 'medium', Q: 'quartile', H: 'high' };
+    const errorCorrectionLevel = ecMap[ec] || 'medium';
+
+    const content = 'https://preview.local/qr';
+
+    let svg = await QRCode.toString(content, {
+      type: 'svg',
+      color: { dark: fg, light: bg },
+      errorCorrectionLevel,
+      margin: 2,
+      width: 512
+    });
+    if (logoUrl) {
+      console.log('Injecting logo:', { logoUrl: logoUrl.substring(0, 50) + '...', logoSizePct });
+      svg = injectLogoIntoSvg(svg, logoUrl, Number.isFinite(logoSizePct) ? logoSizePct : 22, debug, bg, fg);
+    }
+
+    reply.header('Content-Type', 'image/svg+xml').send(svg);
+  });
   // ---------- List my QR codes ----------
   app.get('/api/my/qr', async (req, reply) => {
     let user: AccessPayload;
@@ -172,15 +275,16 @@ export default async function qrRoutes(app: FastifyInstance) {
 
       const slug = Math.random().toString(36).substring(2, 9);
 
-      // default design object
-      const design = JSON.stringify({
-        fg: '#0b3d91',
-        bg: '#ffffff',
-        ec: 'M',
-        format: 'svg',
-        logoUrl: null,
-        logoSizePct: 22
-      });
+      // capture design from form selections (fallbacks match UI defaults)
+      const fg = String(body.fg || '#0b3d91');
+      const bg = String(body.bg || '#ffffff');
+      const ec = String(body.ec || 'M').toUpperCase();
+      const format = String(body.format || 'svg').toLowerCase();
+      const rawLogoUrl = String(body.logoUrl || '').trim();
+      const logoUrl = rawLogoUrl.length ? rawLogoUrl : null;
+      const logoSizePct = Math.max(10, Math.min(40, Number(body.logoSizePct || 22)));
+
+      const design = JSON.stringify({ fg, bg, ec, format, logoUrl, logoSizePct });
 
       // insert QR code with design
       const qrIns = await pool.request()
@@ -331,6 +435,41 @@ export default async function qrRoutes(app: FastifyInstance) {
     }
   });
 
+  // ---------- Update design (colors/logo) ----------
+  app.post('/qr/:slug/design', async (req, reply) => {
+    let user: AccessPayload;
+    try { user = getUserOrThrow(req); }
+    catch { return reply.redirect('/login.html?error=Please+log+in'); }
+
+    const { slug } = req.params as any;
+    const body = req.body as any;
+
+    // sanitize inputs; keep defaults if missing
+    const fg = String(body.fg || '#0b3d91');
+    const bg = String(body.bg || '#ffffff');
+    const ec = String(body.ec || 'M').toUpperCase();
+    const format = String(body.format || 'svg').toLowerCase();
+    const rawLogoUrl = String(body.logoUrl || '').trim();
+    // decode if client pre-encoded the data URL to survive x-www-form-urlencoded
+    const decodedLogo = rawLogoUrl.startsWith('data:') ? rawLogoUrl : decodeURIComponent(rawLogoUrl);
+    const logoUrl = decodedLogo && decodedLogo.length ? decodedLogo : null;
+    const logoSizePct = Math.max(10, Math.min(40, Number(body.logoSizePct || 22)));
+
+    const design = JSON.stringify({ fg, bg, ec, format, logoUrl, logoSizePct });
+
+    const pool = await getPool();
+    const r = await pool.request()
+      .input('uid', SQL.UniqueIdentifier, user.sub)
+      .input('slug', SQL.NVarChar(64), slug)
+      .input('design', SQL.NVarChar(SQL.MAX), design)
+      .query('UPDATE dbo.[QR_Code] SET Design=@design WHERE Slug=@slug AND User_Id=@uid;');
+
+    if ((r.rowsAffected?.[0] || 0) === 0) {
+      return reply.redirect(`/editQR.html?slug=${encodeURIComponent(slug)}&error=Not+found`);
+    }
+    return reply.redirect(`/editQR.html?slug=${encodeURIComponent(slug)}&success=Design+updated`);
+  });
+
   // ---------- Delete QR ----------
   app.post('/qr/:slug/delete', async (req, reply) => {
     let user: AccessPayload;
@@ -375,6 +514,7 @@ export default async function qrRoutes(app: FastifyInstance) {
   // ---------- Serve QR as SVG ----------
   app.get('/qr/:slug.svg', async (req, reply) => {
     const { slug } = req.params as any;
+    const debug = (req.query as any)?.debug === '1';
     const pool = await getPool();
     const r = await pool.request()
       .input('slug', SQL.NVarChar(64), slug)
@@ -396,7 +536,8 @@ export default async function qrRoutes(app: FastifyInstance) {
       margin: 2,
       width: 512
     });
-    if (design.logoUrl) svg = injectLogoIntoSvg(svg, design.logoUrl, Number(design.logoSizePct) || 22);
+    const href = design.logoUrl ? await resolveLogoHref(design.logoUrl) : '';
+    if (href) svg = injectLogoIntoSvg(svg, href, Number(design.logoSizePct) || 22, debug, bg, fg);
 
     reply.header('Content-Type', 'image/svg+xml').send(svg);
   });
@@ -512,6 +653,145 @@ export default async function qrRoutes(app: FastifyInstance) {
 
     // Always redirect regardless (so link previews still work)
     return reply.redirect(Url);
+  });
+
+  // Get QR code name for dashboard filter
+  app.get<{ Params: { userId: string } }>('/api/user/:userId/qrcodes', async (req, reply) => {
+    const { userId } = req.params; // Now TypeScript knows userId exists
+    const pool = await getPool();
+
+    const r = await pool.request()
+      .input('uid', SQL.UniqueIdentifier, userId)
+      .query(`
+        SELECT CAST(Id AS NVARCHAR(36)) AS __value, Name AS __text
+        FROM dbo.QR_Code
+        WHERE User_Id = @uid
+        UNION
+        SELECT 'all' AS __value, 'All QR Codes' AS __text
+      `);
+
+    reply.send(r.recordset);
+  });
+
+  // CSV export
+  app.get('/api/export/scans', async (req, reply) => {
+    let user: AccessPayload;
+    try { user = getUserOrThrow(req); }
+    catch { return reply.code(401).send({ error: 'unauthorized' }); }
+
+    const { qrCodeId, from, to } = req.query as any;
+    const pool = await getPool();
+
+    // Build the query with proper column names and joins
+    let query = `
+      SELECT 
+        s.Id,
+        s.OccurredAt,
+        s.IP,
+        s.Country,
+        s.Region,
+        s.City,
+        s.DeviceType,
+        s.OS,
+        s.Browser,
+        s.Referer,
+        q.Name AS QRName,
+        q.Slug AS QRSlug,
+        t.Url AS TargetUrl
+      FROM dbo.[QR_Scan] s
+      INNER JOIN dbo.[QR_Code] q ON s.QR_Code_Id = q.Id
+      INNER JOIN dbo.[QR_Target] t ON s.Target_Id = t.Id
+      WHERE q.User_Id = @uid
+    `;
+
+    const request = pool.request().input('uid', SQL.UniqueIdentifier, user.sub);
+
+    // Add QR code filter if specified
+    if (qrCodeId && qrCodeId !== 'all') {
+      query += ` AND q.Id = @qrid`;
+      request.input('qrid', SQL.UniqueIdentifier, qrCodeId);
+    }
+
+    // Add date range filter if specified
+    if (from && to) {
+      query += ` AND s.OccurredAt BETWEEN @from AND @to`;
+      request.input('from', SQL.DateTime2, new Date(parseInt(from)));
+      request.input('to', SQL.DateTime2, new Date(parseInt(to)));
+    }
+
+    query += ` ORDER BY s.OccurredAt DESC`;
+
+    try {
+      const r = await request.query(query);
+
+      if (!r.recordset || r.recordset.length === 0) {
+        // Return empty CSV with headers if no data
+        const csv = 'Id,OccurredAt,IP,Country,Region,City,DeviceType,OS,Browser,Referer,QRName,QRSlug,TargetUrl\n';
+        reply.header('Content-Type', 'text/csv');
+        reply.header('Content-Disposition', 'attachment; filename="scan-history.csv"');
+        return reply.send(csv);
+      }
+
+      // Helper function to escape CSV values
+      function escapeCsvValue(value: any): string {
+        if (value === null || value === undefined) return '';
+        const str = String(value);
+        // Escape quotes and wrap in quotes if contains comma, quote, or newline
+        if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      }
+
+      // Get column headers from first record
+      const headers = Object.keys(r.recordset[0]);
+      const headerRow = headers.join(',');
+
+      // Convert data rows to CSV format
+      const dataRows = r.recordset.map(row => 
+        headers.map(header => escapeCsvValue(row[header])).join(',')
+      );
+
+      const csv = headerRow + '\n' + dataRows.join('\n');
+
+      reply.header('Content-Type', 'text/csv; charset=utf-8');
+      reply.header('Content-Disposition', 'attachment; filename="scan-history.csv"');
+      reply.send(csv);
+
+    } catch (error) {
+      console.error('CSV Export Error:', error);
+      reply.code(500).send({ error: 'Failed to export data' });
+    }
+  });
+
+  // Get first scan date for user
+  app.get('/api/user/:userId/first-scan-date', async (req, reply) => {
+    let user: AccessPayload;
+    try { user = getUserOrThrow(req); }
+    catch { return reply.code(401).send({ error: 'unauthorized' }); }
+
+    const { userId } = req.params as any;
+    
+    // Verify the requested userId matches the authenticated user
+    if (userId !== user.sub) {
+      return reply.code(403).send({ error: 'forbidden' });
+    }
+
+    const pool = await getPool();
+    const r = await pool.request()
+      .input('uid', SQL.UniqueIdentifier, userId)
+      .query(`
+        SELECT MIN(s.OccurredAt) AS FirstScanDate
+        FROM dbo.[QR_Scan] s
+        INNER JOIN dbo.[QR_Code] q ON s.QR_Code_Id = q.Id
+        WHERE q.User_Id = @uid AND s.Is_Prefetch = 0
+      `);
+
+    const firstScanDate = r.recordset[0]?.FirstScanDate;
+    
+    reply.send({ 
+      firstScanDate: firstScanDate ? firstScanDate.toISOString() : null 
+    });
   });
 
 }
