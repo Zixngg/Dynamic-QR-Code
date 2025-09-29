@@ -110,15 +110,29 @@
         </div>
 
         <!-- QR Code Dropdown -->
-        <div class="qrCodeSelect">
-          <select id="qrCodeSelect">
+        <div class="date-input-container">
+          <select id="qrCodeSelect" class="date-input">
             <option value="all">All QR Codes</option>
           </select>
         </div>
 
+
+        <!-- <button id="applyDateFilter" class="btn" style="width:auto; padding: 0.75rem 1.5rem;">
+          Apply
+        </button>
+
+        <button id="applyDateFilter" class="btn" style="width:auto; padding: 0.75rem 1.5rem;">
+          Export to CSV
+        </button> -->
+
         <button id="applyDateFilter" class="btn" style="width:auto; padding: 0.75rem 1.5rem;">
           Apply
         </button>
+
+        <button id="exportCsv" class="btn" style="width:auto; padding: 0.75rem 1.5rem;">
+          Export to CSV
+        </button>
+
       </div>
     </div>
 
@@ -150,12 +164,6 @@
     if (qrRes.ok) {
       const qrCodes = await qrRes.json();
       qrSelect.innerHTML = '';
-
-      // Add "All QR Codes" as default first option
-      const allOpt = document.createElement("option");
-      allOpt.value = 'all';
-      allOpt.textContent = 'All QR Codes';
-      qrSelect.appendChild(allOpt);
 
       // Add other QR codes
       qrCodes.forEach(qr => {
@@ -237,6 +245,57 @@
 
     // load initial history chart
     loadHistoryChart();
+
+    // export CSV
+    document.getElementById("exportCsv").addEventListener("click", async () => {
+      const fromDate = document.getElementById("dateFrom").value;
+      const toDate = document.getElementById("dateTo").value;
+      const qrSelect = document.getElementById("qrCodeSelect");
+      const qrCodeId = qrSelect.value;
+
+      const fromEpoch = fromDate ? new Date(fromDate + "T00:00:00").getTime() : null;
+      const toEpochVal = toDate ? new Date(toDate + "T23:59:59").getTime() : null;
+
+      // Build export URL
+      let exportUrl = `/api/export/scans?qrCodeId=${qrCodeId}`;
+
+      if (fromEpoch && toEpochVal) {
+        exportUrl += `&from=${fromEpoch}&to=${toEpochVal}`;
+      }
+
+      try {
+        // fetch CSV from backend
+        const res = await fetch(exportUrl, { credentials: 'include' });
+        
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error('Export failed:', res.status, errorText);
+          alert(`Failed to export CSV: ${res.status} ${res.statusText}`);
+          return;
+        }
+
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        
+        // Generate filename with current date/time
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+        const qrName = qrCodeId === 'all' ? 'all-qr-codes' : 'qr-specific';
+        a.download = `scan-history-${qrName}-${dateStr}.csv`;
+        
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        
+        console.log('CSV export completed successfully');
+      } catch (error) {
+        console.error('Export error:', error);
+        alert('Failed to export CSV. Please try again.');
+      }
+    });
 
     // Greeting
     document.getElementById('greeting').textContent = `Hello, ${me.email}`;
