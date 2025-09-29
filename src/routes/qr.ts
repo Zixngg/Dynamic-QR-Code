@@ -708,4 +708,143 @@ export default async function qrRoutes(app: FastifyInstance) {
     return reply.redirect(Url);
   });
 
+  // Get QR code name for dashboard filter
+  app.get<{ Params: { userId: string } }>('/api/user/:userId/qrcodes', async (req, reply) => {
+    const { userId } = req.params; // Now TypeScript knows userId exists
+    const pool = await getPool();
+
+    const r = await pool.request()
+      .input('uid', SQL.UniqueIdentifier, userId)
+      .query(`
+        SELECT CAST(Id AS NVARCHAR(36)) AS __value, Name AS __text
+        FROM dbo.QR_Code
+        WHERE User_Id = @uid
+        UNION
+        SELECT 'all' AS __value, 'All QR Codes' AS __text
+      `);
+
+    reply.send(r.recordset);
+  });
+
+  // CSV export
+  app.get('/api/export/scans', async (req, reply) => {
+    let user: AccessPayload;
+    try { user = getUserOrThrow(req); }
+    catch { return reply.code(401).send({ error: 'unauthorized' }); }
+
+    const { qrCodeId, from, to } = req.query as any;
+    const pool = await getPool();
+
+    // Build the query with proper column names and joins
+    let query = `
+      SELECT 
+        s.Id,
+        s.OccurredAt,
+        s.IP,
+        s.Country,
+        s.Region,
+        s.City,
+        s.DeviceType,
+        s.OS,
+        s.Browser,
+        s.Referer,
+        q.Name AS QRName,
+        q.Slug AS QRSlug,
+        t.Url AS TargetUrl
+      FROM dbo.[QR_Scan] s
+      INNER JOIN dbo.[QR_Code] q ON s.QR_Code_Id = q.Id
+      INNER JOIN dbo.[QR_Target] t ON s.Target_Id = t.Id
+      WHERE q.User_Id = @uid
+    `;
+
+    const request = pool.request().input('uid', SQL.UniqueIdentifier, user.sub);
+
+    // Add QR code filter if specified
+    if (qrCodeId && qrCodeId !== 'all') {
+      query += ` AND q.Id = @qrid`;
+      request.input('qrid', SQL.UniqueIdentifier, qrCodeId);
+    }
+
+    // Add date range filter if specified
+    if (from && to) {
+      query += ` AND s.OccurredAt BETWEEN @from AND @to`;
+      request.input('from', SQL.DateTime2, new Date(parseInt(from)));
+      request.input('to', SQL.DateTime2, new Date(parseInt(to)));
+    }
+
+    query += ` ORDER BY s.OccurredAt DESC`;
+
+    try {
+      const r = await request.query(query);
+
+      if (!r.recordset || r.recordset.length === 0) {
+        // Return empty CSV with headers if no data
+        const csv = 'Id,OccurredAt,IP,Country,Region,City,DeviceType,OS,Browser,Referer,QRName,QRSlug,TargetUrl\n';
+        reply.header('Content-Type', 'text/csv');
+        reply.header('Content-Disposition', 'attachment; filename="scan-history.csv"');
+        return reply.send(csv);
+      }
+
+      // Helper function to escape CSV values
+      function escapeCsvValue(value: any): string {
+        if (value === null || value === undefined) return '';
+        const str = String(value);
+        // Escape quotes and wrap in quotes if contains comma, quote, or newline
+        if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      }
+
+      // Get column headers from first record
+      const headers = Object.keys(r.recordset[0]);
+      const headerRow = headers.join(',');
+
+      // Convert data rows to CSV format
+      const dataRows = r.recordset.map(row => 
+        headers.map(header => escapeCsvValue(row[header])).join(',')
+      );
+
+      const csv = headerRow + '\n' + dataRows.join('\n');
+
+      reply.header('Content-Type', 'text/csv; charset=utf-8');
+      reply.header('Content-Disposition', 'attachment; filename="scan-history.csv"');
+      reply.send(csv);
+
+    } catch (error) {
+      console.error('CSV Export Error:', error);
+      reply.code(500).send({ error: 'Failed to export data' });
+    }
+  });
+
+  // Get first scan date for user
+  app.get('/api/user/:userId/first-scan-date', async (req, reply) => {
+    let user: AccessPayload;
+    try { user = getUserOrThrow(req); }
+    catch { return reply.code(401).send({ error: 'unauthorized' }); }
+
+    const { userId } = req.params as any;
+    
+    // Verify the requested userId matches the authenticated user
+    if (userId !== user.sub) {
+      return reply.code(403).send({ error: 'forbidden' });
+    }
+
+    const pool = await getPool();
+    const r = await pool.request()
+      .input('uid', SQL.UniqueIdentifier, userId)
+      .query(`
+        SELECT MIN(s.OccurredAt) AS FirstScanDate
+        FROM dbo.[QR_Scan] s
+        INNER JOIN dbo.[QR_Code] q ON s.QR_Code_Id = q.Id
+        WHERE q.User_Id = @uid AND s.Is_Prefetch = 0
+      `);
+
+    const firstScanDate = r.recordset[0]?.FirstScanDate;
+    
+    reply.send({ 
+      firstScanDate: firstScanDate ? firstScanDate.toISOString() : null 
+    });
+  });
+
 }
