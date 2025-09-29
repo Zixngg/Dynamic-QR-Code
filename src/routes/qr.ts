@@ -30,9 +30,23 @@ function injectLogoIntoSvg(svg: string, logoHref: string, logoSizePct: number, d
   
   // Find the viewBox and extract dimensions
   const viewBoxMatch = svg.match(/viewBox="([^"]+)"/);
-  if (!viewBoxMatch) return svg;
+  if (!viewBoxMatch) {
+    console.warn('No viewBox found in SVG, skipping logo injection');
+    return svg;
+  }
   
-  const [, , , , height] = viewBoxMatch[1].split(/\s+/).map(Number);
+  const viewBoxParts = viewBoxMatch[1].split(/\s+/).map(Number);
+  if (viewBoxParts.length < 4) {
+    console.warn('Invalid viewBox format:', viewBoxMatch[1]);
+    return svg;
+  }
+  
+  const [, , width, height] = viewBoxParts;
+  if (!width || !height || isNaN(width) || isNaN(height)) {
+    console.warn('Invalid viewBox dimensions:', { width, height });
+    return svg;
+  }
+  
   const logoSizePx = (height * logoSize) / 100;
   const logoXpx = (height * logoX) / 100;
   const logoYpx = (height * logoY) / 100;
@@ -116,22 +130,22 @@ export default async function qrRoutes(app: FastifyInstance) {
 
     try {
       console.log('Generating QR with:', { fg, bg, errorCorrectionLevel, logoUrl: logoUrl ? 'present' : 'none', logoSizePct, content });
-      
-      let svg = await QRCode.toString(content, {
-        type: 'svg',
-        color: { dark: fg, light: bg },
-        errorCorrectionLevel,
-        margin: 2,
-        width: 512
-      });
 
-      if (logoUrl) {
+    let svg = await QRCode.toString(content, {
+      type: 'svg',
+      color: { dark: fg, light: bg },
+      errorCorrectionLevel,
+      margin: 2,
+      width: 512
+    });
+
+    if (logoUrl) {
         const href = await resolveLogoHref(logoUrl);
         if (href) svg = injectLogoIntoSvg(svg, href, logoSizePct, debug, bg, fg);
-      }
-      
+    }
+
       console.log('QR generated successfully, SVG length:', svg.length);
-      reply.header('Content-Type', 'image/svg+xml').send(svg);
+    reply.header('Content-Type', 'image/svg+xml').send(svg);
     } catch (error) {
       console.error('Preview generation failed:', error);
       return reply.code(500).send('Preview generation failed');
@@ -200,7 +214,7 @@ export default async function qrRoutes(app: FastifyInstance) {
       const utmSource = String(body.utm_source || '').trim();
       const utmMedium = String(body.utm_medium || '').trim();
       const utmCampaign = String(body.utm_campaign || '').trim();
-      
+
       const utmData = JSON.stringify({
         utm_source: utmSource || null,
         utm_medium: utmMedium || null,
@@ -307,12 +321,12 @@ export default async function qrRoutes(app: FastifyInstance) {
 
     try {
       const pool = await getPool();
-
+      
       // Handle UTM parameters
       const utmSource = String(body.utm_source || '').trim();
       const utmMedium = String(body.utm_medium || '').trim();
       const utmCampaign = String(body.utm_campaign || '').trim();
-      
+
       const utmData = JSON.stringify({
         utm_source: utmSource || null,
         utm_medium: utmMedium || null,
@@ -394,10 +408,10 @@ export default async function qrRoutes(app: FastifyInstance) {
     const { slug } = req.params as any;
 
     try {
-      const pool = await getPool();
-      await pool.request()
+    const pool = await getPool();
+    await pool.request()
         .input('uid', SQL.UniqueIdentifier, user.sub)
-        .input('slug', SQL.NVarChar(64), slug)
+      .input('slug', SQL.NVarChar(64), slug)
         .query('UPDATE dbo.[QR_Code] SET Archived=1 WHERE Slug=@slug AND User_Id=@uid');
 
       return reply.redirect('/qr.html?success=QR+Code+deleted');
@@ -421,7 +435,7 @@ export default async function qrRoutes(app: FastifyInstance) {
       console.log('Fetching QR codes for user:', user.sub);
       
       const r = await pool.request()
-        .input('uid', SQL.UniqueIdentifier, user.sub)
+      .input('uid', SQL.UniqueIdentifier, user.sub)
         .query(`
           SELECT c.Name, c.Slug, c.CreatedAt
           FROM dbo.[QR_Code] c
@@ -449,11 +463,11 @@ export default async function qrRoutes(app: FastifyInstance) {
     const { slug } = req.params as any;
 
     try {
-      const pool = await getPool();
-      const r = await pool.request()
+    const pool = await getPool();
+    const r = await pool.request()
         .input('slug', SQL.NVarChar(64), slug)
-        .input('uid', SQL.UniqueIdentifier, user.sub)
-        .query(`
+      .input('uid', SQL.UniqueIdentifier, user.sub)
+      .query(`
           SELECT TOP 1 c.Name, c.Slug, c.Design, t.Url, t.UTM
           FROM dbo.[QR_Code] c
           INNER JOIN dbo.[QR_Target] t ON c.CurrentTargetId = t.Id
@@ -471,9 +485,10 @@ export default async function qrRoutes(app: FastifyInstance) {
       return reply.send({
         Name,
         Slug,
-        Design: design,
-        UTM: utm
-      });
+        Url,
+      Design: design,
+      UTM: utm
+    });
     } catch (error) {
       console.error('Data fetch failed:', error);
       return reply.code(500).send('Data fetch failed');
@@ -500,17 +515,17 @@ export default async function qrRoutes(app: FastifyInstance) {
     const content = `${PUBLIC_BASE_URL}/r/${slug}`;
 
     try {
-      let svg = await QRCode.toString(content, {
-        type: 'svg',
-        color: { dark: fg, light: bg },
-        errorCorrectionLevel,
-        margin: 2,
-        width: 512
-      });
+    let svg = await QRCode.toString(content, {
+      type: 'svg',
+      color: { dark: fg, light: bg },
+      errorCorrectionLevel,
+      margin: 2,
+      width: 512
+    });
 
-      const href = design.logoUrl ? await resolveLogoHref(design.logoUrl) : '';
-      if (href) svg = injectLogoIntoSvg(svg, href, Number(design.logoSizePct) || 22, debug, bg, fg);
-      
+    const href = design.logoUrl ? await resolveLogoHref(design.logoUrl) : '';
+    if (href) svg = injectLogoIntoSvg(svg, href, Number(design.logoSizePct) || 22, debug, bg, fg);
+
       reply.header('Content-Type', 'image/svg+xml')
           .header('Content-Disposition', `attachment; filename="${slug}.svg"`)
           .send(svg);
@@ -526,10 +541,10 @@ export default async function qrRoutes(app: FastifyInstance) {
     const userAgent = req.headers['user-agent'] || '';
     const ip = req.ip || req.socket.remoteAddress || '';
 
-    const pool = await getPool();
+  const pool = await getPool();
     const r = await pool.request()
-      .input('slug', SQL.NVarChar(64), slug)
-      .query(`
+    .input('slug', SQL.NVarChar(64), slug)
+    .query(`
         SELECT TOP 1 t.Url, t.UTM, c.Name
         FROM dbo.[QR_Code] c
         INNER JOIN dbo.[QR_Target] t ON c.CurrentTargetId = t.Id

@@ -286,14 +286,14 @@
       const me = await fetch('/api/me', { credentials:'include' });
       if (me.status===401) { location.href='/login.html?error=Session+expired'; return; }
 
-      const r = await fetch('/api/qr/'+encodeURIComponent(slug), { credentials:'include' });
+      const r = await fetch('/qr/'+encodeURIComponent(slug)+'/data', { credentials:'include' });
       if (!r.ok) { msgEl.className='error'; msgEl.textContent='Not found'; return; }
       qrData = await r.json();
 
       // Populate QR info
       document.getElementById('qrName').textContent = qrData.Name;
       document.getElementById('qrSlug').textContent = qrData.Slug;
-      document.getElementById('url').value = qrData.CurrentUrl || '';
+      document.getElementById('url').value = qrData.Url || '';
       
       // Populate UTM data
       if (qrData.UTM) {
