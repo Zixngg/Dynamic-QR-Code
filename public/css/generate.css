@@ -5,6 +5,29 @@
   gap: 24px;
 }
 
+/* Design and Preview Side-by-Side Layout */
+.design-preview-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .design-preview-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Preview Status Container */
+.preview-status-container {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+}
+
 /* Form Header & Progress */
 .form-header {
   margin-bottom: 24px;
@@ -503,12 +526,41 @@
   right: 0;
   bottom: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.7);
   border-radius: 8px;
   opacity: 0;
   transition: opacity 0.3s ease;
+}
+
+.preview-status {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+}
+
+.preview-status .status-indicator {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.preview-status .status-indicator.error {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.preview-status .status-indicator.loading {
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .qr-container:hover .qr-overlay {
@@ -557,6 +609,21 @@
 .preview-actions .btn {
   width: 100%;
   margin-bottom: 8px;
+}
+
+.download-format-selector {
+  margin-bottom: 12px;
+}
+
+.download-format-selector .input-label {
+  font-size: 13px;
+  margin-bottom: 6px;
+  text-align: left;
+}
+
+.download-format-selector .input {
+  width: 100%;
+  font-size: 13px;
 }
 
 /* Enhanced Help Text */

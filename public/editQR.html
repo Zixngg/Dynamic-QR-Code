@@ -55,7 +55,9 @@
             <div style="margin-bottom: 8px;"><strong>Name:</strong> <span id="qrName">—</span></div>
             <div style="margin-bottom: 8px;"><strong>Slug:</strong> <span id="qrSlug">—</span></div>
             <div style="margin-bottom: 8px;"><a id="qrDyn" class="link" href="#" target="_blank">Open dynamic link</a></div>
-            <div><a id="dlLink" class="link" href="#" download>Download SVG</a></div>
+            <div style="margin-bottom: 12px;">
+              <a id="dlLink" class="link" href="#" download>Download QR Code (SVG)</a>
+            </div>
           </div>
         </div>
       </div>
@@ -116,149 +118,141 @@
       </div>
     </form>
 
-    <!-- Update Design Form -->
-    <form class="card" id="designForm">
-      <div class="form-header">
-        <h2>🎨 Update Design</h2>
-        <p class="sub">Customize the appearance of your QR code.</p>
-      </div>
-
-      <div id="design-msg"></div>
-
-      <div class="form-section">
-        <div class="section-header">
-          <h3>🎨 Visual Design</h3>
-          <span class="section-badge">Customize</span>
-        </div>
-        
-        <div class="design-grid">
-          <div class="design-group">
-            <label class="input-label">Colors</label>
-            <div class="color-inputs">
-              <div class="color-input">
-                <label class="color-label">Foreground</label>
-                <input class="input color-picker" type="color" name="fg" id="fg" value="#0b3d91">
-                <span class="color-value">#0b3d91</span>
-              </div>
-              <div class="color-input">
-                <label class="color-label">Background</label>
-                <input class="input color-picker" type="color" name="bg" id="bg" value="#ffffff">
-                <span class="color-value">#ffffff</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="design-group">
-            <label class="input-label">Error Correction</label>
-            <select class="input" name="ec" id="ec">
-              <option value="L">L (7%) - Low</option>
-              <option value="M" selected>M (15%) - Medium</option>
-              <option value="Q">Q (25%) - High</option>
-              <option value="H">H (30%) - Highest</option>
-            </select>
-            <div class="help">Higher levels allow more damage before the QR becomes unreadable.</div>
-          </div>
-
-          <div class="design-group">
-            <label class="input-label">Output Format</label>
-            <select class="input" name="format" id="format">
-              <option value="svg" selected>SVG - Scalable Vector</option>
-              <option value="png" disabled>PNG - Raster Image (Coming Soon)</option>
-            </select>
-            <div class="help">SVG is recommended for web use as it scales perfectly.</div>
-          </div>
+    <!-- Design and Preview Section -->
+    <div class="design-preview-container">
+      <!-- Update Design Form -->
+      <form class="card" id="designForm">
+        <div class="form-header">
+          <h2>🎨 Update Design</h2>
+          <p class="sub">Customize the appearance of your QR code.</p>
         </div>
 
-        <div class="row">
-          <label class="input-label">
-            <span class="label-text">Center Logo</span>
-            <span class="label-optional">Optional</span>
-          </label>
-          <div class="logo-upload-area">
-            <div class="logo-upload-box" id="logoUploadBox">
-              <div class="upload-icon">📁</div>
-              <div class="upload-text">
-                <span class="upload-title">Click to upload logo</span>
-                <span class="upload-subtitle">PNG, JPG, SVG up to 5MB</span>
-              </div>
-              <input type="file" id="logoInput" accept=".png,.jpg,.jpeg,.svg" style="display: none;" />
-            </div>
-            <div class="logo-preview" id="logoPreview" style="display: none;">
-              <img id="logoThumb" alt="logo preview">
-              <div class="logo-controls">
-                <button type="button" class="btn-remove-logo" id="removeLogo">✕</button>
-                <div class="logo-size-control">
-                  <label>Size: </label>
-                  <input class="input" type="number" name="logoSizePct" id="logoSizePct" min="10" max="40" value="22">
-                  <span>%</span>
+        <div id="design-msg"></div>
+
+        <div class="form-section">
+          <div class="section-header">
+            <h3>🎨 Visual Design</h3>
+            <span class="section-badge">Customize</span>
+          </div>
+          
+          <div class="design-grid">
+            <div class="design-group">
+              <label class="input-label">Colors</label>
+              <div class="color-inputs">
+                <div class="color-input">
+                  <label class="color-label">Foreground</label>
+                  <input class="input color-picker" type="color" name="fg" id="fg" value="#0b3d91">
+                  <span class="color-value">#0b3d91</span>
+                </div>
+                <div class="color-input">
+                  <label class="color-label">Background</label>
+                  <input class="input color-picker" type="color" name="bg" id="bg" value="#ffffff">
+                  <span class="color-value">#ffffff</span>
                 </div>
               </div>
             </div>
-          </div>
-          <input type="hidden" name="logoUrl" id="logoUrl">
-          <div class="help">Add your logo to the center of the QR code. Recommended size: 15-25% for best readability.</div>
-        </div>
-      </div>
 
-      <div class="form-actions">
-        <button class="btn btn-primary" type="submit">
-          <span class="btn-icon">🎨</span>
-          Update Design
-        </button>
-        <div class="form-note">
-          <span class="note-icon">💡</span>
-          This changes the visual appearance of your QR code. You'll need to download the new version.
-        </div>
-      </div>
-    </form>
+            <div class="design-group">
+              <label class="input-label">Error Correction</label>
+              <select class="input" name="ec" id="ec">
+                <option value="L">L (7%) - Low</option>
+                <option value="M" selected>M (15%) - Medium</option>
+                <option value="Q">Q (25%) - High</option>
+                <option value="H">H (30%) - Highest</option>
+              </select>
+              <div class="help">Higher levels allow more damage before the QR becomes unreadable.</div>
+            </div>
 
-    <!-- RIGHT: live preview -->
-    <div class="preview-card">
-      <div class="preview-header">
-        <h2>🎯 Live Preview</h2>
-        <div class="preview-status">
-          <span class="status-indicator" id="previewStatus">Ready</span>
-        </div>
-      </div>
-      
-      <div class="preview-box">
-        <div class="qr-container">
-          <div id="previewSvg" class="qr-svg-container"></div>
-          <div class="qr-overlay" id="qrOverlay">
-            <div class="scan-hint">📱 Scan to test</div>
+          </div>
+
+          <div class="row">
+            <label class="input-label">
+              <span class="label-text">Center Logo</span>
+              <span class="label-optional">Optional</span>
+            </label>
+            <div class="logo-upload-area">
+              <div class="logo-upload-box" id="logoUploadBox">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">
+                  <span class="upload-title">Click to upload logo</span>
+                  <span class="upload-subtitle">PNG, JPG, SVG up to 5MB</span>
+                </div>
+                <input type="file" id="logoInput" accept=".png,.jpg,.jpeg,.svg" style="display: none;" />
+              </div>
+              <div class="logo-preview" id="logoPreview" style="display: none;">
+                <img id="logoThumb" alt="logo preview">
+                <div class="logo-controls">
+                  <button type="button" class="btn-remove-logo" id="removeLogo">✕</button>
+                  <div class="logo-size-control">
+                    <label>Size: </label>
+                    <input class="input" type="number" name="logoSizePct" id="logoSizePct" min="10" max="40" value="22">
+                    <span>%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <input type="hidden" name="logoUrl" id="logoUrl">
+            <div class="help">Add your logo to the center of the QR code. Recommended size: 15-25% for best readability.</div>
           </div>
         </div>
-      </div>
-      
-      <div class="preview-info">
-        <div class="info-item">
-          <span class="info-label">Short Link:</span>
-          <span class="info-value" id="previewShortLink">yourdomain.com/r/abc123</span>
+
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">
+            <span class="btn-icon">🎨</span>
+            Update Design
+          </button>
+          <div class="form-note">
+            <span class="note-icon">💡</span>
+            This changes the visual appearance of your QR code. You'll need to download the new version.
+          </div>
         </div>
-        <div class="info-item">
-          <span class="info-label">Destination:</span>
-          <span class="info-value" id="previewDestination">https://example.com</span>
+      </form>
+
+      <!-- Live Preview -->
+      <div class="preview-card">
+        <div class="form-header">
+          <h2>🎯 Live Preview</h2>
+          <p class="sub">See your QR code changes in real-time.</p>
         </div>
-        <div class="info-item">
-          <span class="info-label">Format:</span>
-          <span class="info-value" id="previewFormat">SVG</span>
+        
+        <div class="preview-box">
+          <div class="preview-status">
+            <span class="status-indicator" id="previewStatus">Ready</span>
+          </div>
+          <div class="qr-container">
+            <div id="previewSvg" class="qr-svg-container"></div>
+            <div class="qr-overlay" id="qrOverlay">
+              <div class="scan-hint">📱 Scan to test</div>
+            </div>
+          </div>
         </div>
-        <div class="info-item">
-          <span class="info-label">Error Correction:</span>
-          <span class="info-value" id="previewEC">M (15%)</span>
+        
+        <div class="preview-info">
+          <div class="info-item">
+            <span class="info-label">Short Link:</span>
+            <span class="info-value" id="previewShortLink">yourdomain.com/r/abc123</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Destination:</span>
+            <span class="info-value" id="previewDestination">https://example.com</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Format:</span>
+            <span class="info-value" id="previewFormat">SVG</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Error Correction:</span>
+            <span class="info-value" id="previewEC">M (15%)</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Colors:</span>
+            <span class="info-value" id="previewColors">#0b3d91 on #ffffff</span>
+          </div>
         </div>
-        <div class="info-item">
-          <span class="info-label">Colors:</span>
-          <span class="info-value" id="previewColors">#0b3d91 on #ffffff</span>
+        
+        <div class="preview-actions">
+          <div class="help">Preview updates automatically as you make changes.</div>
         </div>
-      </div>
-      
-      <div class="preview-actions">
-        <button class="btn btn-secondary" id="downloadPreview">
-          <span class="btn-icon">⬇️</span>
-          Download Preview
-        </button>
-        <div class="help">Preview updates automatically as you make changes.</div>
       </div>
     </div>
   </div>
@@ -340,9 +334,11 @@
       const dl = document.getElementById('dlLink');
       const dyn = document.getElementById('qrDyn');
 
-      img.src = '/qr/'+encodeURIComponent(slug)+'.svg';
-      dl.href = img.src; 
-      dl.download = slug+'.svg';
+      // Get current format from design data or default to svg
+      const currentFormat = qrData.Design?.format || 'svg';
+      
+      img.src = '/qr/'+encodeURIComponent(slug)+'/svg'; // Always show SVG for preview
+      dl.href = '#'; // Will be set dynamically when clicked
       dyn.href = '/r/'+encodeURIComponent(slug);
 
       // Update preview with current values
@@ -373,12 +369,11 @@
 
   // Live preview with enhanced info
   function refreshPreview() {
-    const fg = document.getElementById('fg').value;
-    const bg = document.getElementById('bg').value;
-    const ec = document.getElementById('ec').value;
-    const format = document.getElementById('format').value;
-    const logoUrl = document.getElementById('logoUrl').value || '';
-    const logoSizePct = document.getElementById('logoSizePct').value || '22';
+      const fg = document.getElementById('fg').value;
+      const bg = document.getElementById('bg').value;
+      const ec = document.getElementById('ec').value;
+      const logoUrl = document.getElementById('logoUrl').value || '';
+      const logoSizePct = document.getElementById('logoSizePct').value || '22';
     const url = document.getElementById('url').value || '';
     const utmSource = document.getElementById('utm_source').value || '';
     const utmMedium = document.getElementById('utm_medium').value || '';
@@ -440,11 +435,11 @@
     const shortLink = `yourdomain.com/r/${shortLinkSlug}`;
     const destination = previewUrl || 'https://example.com';
     
-    document.getElementById('previewShortLink').textContent = shortLink;
-    document.getElementById('previewDestination').textContent = destination.length > 30 ? destination.substring(0, 30) + '...' : destination;
-    document.getElementById('previewFormat').textContent = format.toUpperCase();
-    document.getElementById('previewEC').textContent = document.getElementById('ec').options[document.getElementById('ec').selectedIndex].textContent;
-    document.getElementById('previewColors').textContent = `${fg} on ${bg}`;
+      document.getElementById('previewShortLink').textContent = shortLink;
+      document.getElementById('previewDestination').textContent = destination.length > 30 ? destination.substring(0, 30) + '...' : destination;
+      document.getElementById('previewFormat').textContent = 'SVG';
+      document.getElementById('previewEC').textContent = document.getElementById('ec').options[document.getElementById('ec').selectedIndex].textContent;
+      document.getElementById('previewColors').textContent = `${fg} on ${bg}`;
     
     // Update color values
     updateColorValues();
@@ -601,7 +596,6 @@
       fg: document.getElementById('fg').value,
       bg: document.getElementById('bg').value,
       ec: document.getElementById('ec').value,
-      format: 'svg',
       logoUrl: encodeURIComponent(logoUrlValue),
       logoSizePct: document.getElementById('logoSizePct').value
     });
@@ -628,10 +622,11 @@
     }
   });
 
-  // Download preview
-  document.getElementById('downloadPreview').addEventListener('click', () => {
+  // Download functionality
+  document.getElementById('dlLink').addEventListener('click', (e) => {
+    e.preventDefault();
     const link = document.createElement('a');
-    link.href = '/qr/' + encodeURIComponent(slug) + '.svg';
+    link.href = '/qr/' + encodeURIComponent(slug) + '/svg';
     link.download = slug + '.svg';
     link.click();
   });

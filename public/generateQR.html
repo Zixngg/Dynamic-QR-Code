@@ -163,9 +163,11 @@
             <label class="input-label">Output Format</label>
             <select class="input" name="format">
               <option value="svg" selected>SVG - Scalable Vector</option>
-              <option value="png" disabled>PNG - Raster Image (Coming Soon)</option>
+              <option value="png">PNG - Raster Image</option>
+              <option value="jpg">JPG - JPEG Image</option>
+              <option value="pdf">PDF - Document Format</option>
             </select>
-            <div class="help">SVG is recommended for web use as it scales perfectly.</div>
+            <div class="help">Choose the best format for your use case. SVG scales perfectly, PNG/JPG are great for print, PDF is ideal for documents.</div>
           </div>
         </div>
 
@@ -216,12 +218,12 @@
     <div class="preview-card">
       <div class="preview-header">
         <h2>🎯 Live Preview</h2>
-        <div class="preview-status">
-          <span class="status-indicator" id="previewStatus">Ready</span>
-        </div>
       </div>
       
       <div class="preview-box">
+        <div class="preview-status">
+          <span class="status-indicator" id="previewStatus">Ready</span>
+        </div>
         <div class="qr-container">
           <div id="previewSvg" class="qr-svg-container"></div>
           <div class="qr-overlay" id="qrOverlay">
@@ -380,7 +382,7 @@
     fetch(previewUrl_full)
       .then(response => {
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         return response.text();
       })
@@ -389,6 +391,12 @@
         previewStatus.textContent = 'Ready';
         previewStatus.className = 'status-indicator';
         console.log('Preview loaded successfully');
+        
+        // Remove any existing error messages
+        const existingError = document.querySelector('.preview-error');
+        if (existingError) {
+          existingError.remove();
+        }
         
         // Debug: Check if SVG contains image elements
         const svgElement = previewSvg.querySelector('svg');

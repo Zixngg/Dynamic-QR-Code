@@ -76,22 +76,39 @@
 
   // fetch and render table
   (async function(){
+    console.log('Starting QR list fetch...');
+    
     const me = await fetch('/api/me', { credentials:'include' });
+    console.log('Me response:', me.status);
     if (me.status===401) {
       location.href='/login.html?error=Session+expired';
       return;
     }
 
+    console.log('Fetching QR codes...');
     const r = await fetch('/api/my/qr', { credentials:'include' });
-    if (!r.ok) return;
+    console.log('QR response:', r.status, r.statusText);
+    
+    if (!r.ok) {
+      console.error('QR fetch failed:', r.status, r.statusText);
+      return;
+    }
+    
     const rows = await r.json();
+    console.log('QR codes received:', rows);
+    
     const tb = document.querySelector('#tbl tbody');
     tb.innerHTML = '';
+
+    if (rows.length === 0) {
+      tb.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--muted); padding: 20px;">No QR codes found. <a href="/generateQR.html">Create your first QR code</a></td></tr>';
+      return;
+    }
 
     for (const x of rows) {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><img src="/qr/${encodeURIComponent(x.Slug)}.svg" alt="qr"></td>
+        <td><img src="/qr/${encodeURIComponent(x.Slug)}/svg" alt="qr"></td>
         <td>${x.Name}</td>
         <td>
           <a class="link" href="/r/${encodeURIComponent(x.Slug)}" target="_blank">${x.Slug}</a>
