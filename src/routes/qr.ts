@@ -764,5 +764,34 @@ export default async function qrRoutes(app: FastifyInstance) {
     }
   });
 
+  // Get first scan date for user
+  app.get('/api/user/:userId/first-scan-date', async (req, reply) => {
+    let user: AccessPayload;
+    try { user = getUserOrThrow(req); }
+    catch { return reply.code(401).send({ error: 'unauthorized' }); }
+
+    const { userId } = req.params as any;
+    
+    // Verify the requested userId matches the authenticated user
+    if (userId !== user.sub) {
+      return reply.code(403).send({ error: 'forbidden' });
+    }
+
+    const pool = await getPool();
+    const r = await pool.request()
+      .input('uid', SQL.UniqueIdentifier, userId)
+      .query(`
+        SELECT MIN(s.OccurredAt) AS FirstScanDate
+        FROM dbo.[QR_Scan] s
+        INNER JOIN dbo.[QR_Code] q ON s.QR_Code_Id = q.Id
+        WHERE q.User_Id = @uid AND s.Is_Prefetch = 0
+      `);
+
+    const firstScanDate = r.recordset[0]?.FirstScanDate;
+    
+    reply.send({ 
+      firstScanDate: firstScanDate ? firstScanDate.toISOString() : null 
+    });
+  });
 
 }

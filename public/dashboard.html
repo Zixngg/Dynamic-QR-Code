@@ -116,15 +116,6 @@
           </select>
         </div>
 
-
-        <!-- <button id="applyDateFilter" class="btn" style="width:auto; padding: 0.75rem 1.5rem;">
-          Apply
-        </button>
-
-        <button id="applyDateFilter" class="btn" style="width:auto; padding: 0.75rem 1.5rem;">
-          Export to CSV
-        </button> -->
-
         <button id="applyDateFilter" class="btn" style="width:auto; padding: 0.75rem 1.5rem;">
           Apply
         </button>
@@ -177,7 +168,32 @@
       qrSelect.value = 'all';
     }
 
-
+      // Fetch first scan date to set as default "from" date
+  const firstScanRes = await fetch(`/api/user/${me.id}/first-scan-date`, { credentials: 'include' });
+  let defaultFromDate = '';
+  
+  if (firstScanRes.ok) {
+    const data = await firstScanRes.json();
+    if (data.firstScanDate) {
+      // Convert ISO date to YYYY-MM-DD format for date input
+      defaultFromDate = data.firstScanDate.split('T')[0];
+    }
+  }
+  
+  // If no first scan date found, default to 30 days ago
+  if (!defaultFromDate) {
+    const prior = new Date();
+    prior.setDate(prior.getDate() - 30);
+    defaultFromDate = prior.toISOString().split('T')[0];
+  }
+  
+  // Set today as default "to" date
+  const today = new Date();
+  const defaultToDate = today.toISOString().split('T')[0];
+  
+  // Set default values
+  document.getElementById("dateFrom").value = defaultFromDate;
+  document.getElementById("dateTo").value = defaultToDate;
 
     // inject userId into Grafana iframe URLs
     const todayIframe = document.getElementById('chart-today');
@@ -185,35 +201,6 @@
 
     const todayPerQrIframe = document.getElementById('chart-today-per-qr');
     todayPerQrIframe.src = `http://analytics.sg-akc.com/d-solo/bc26ffb9-588c-4033-a77b-5a10af9df52d/dynamic-qr-code?orgId=1&from=now-1d&to=now&timezone=browser&panelId=3&var-userId=${me.id}`;
-
-    // function to convert yyyy-mm-dd to epoch ms
-    function toEpoch(dateStr) {
-      return new Date(dateStr + "T00:00:00").getTime();
-    }
-
-    // set default date range (last 30 days)
-    const today = new Date();
-    const prior = new Date();
-    prior.setDate(today.getDate() - 30);
-
-    // function loadHistoryChart() {
-    //   const fromDate = document.getElementById("dateFrom").value;
-    //   const toDate = document.getElementById("dateTo").value;
-
-    //   const fromEpoch = fromDate ? new Date(fromDate + "T00:00:00").getTime() : null;
-    //   const toEpochVal = toDate ? new Date(toDate + "T23:59:59").getTime() : null;
-
-    //   let historyUrl = `http://analytics.sg-akc.com/d-solo/bc26ffb9-588c-4033-a77b-5a10af9df52d/dynamic-qr-code?orgId=1&timezone=browser&panelId=5&__feature.dashboardSceneSolo=true&var-userId=${me.id}&var-qrCodeId=all`;
-    //   let extraUrl = `http://analytics.sg-akc.com/d-solo/bc26ffb9-588c-4033-a77b-5a10af9df52d/dynamic-qr-code?orgId=1&timezone=browser&panelId=6&__feature.dashboardSceneSolo=true&var-userId=${me.id}&var-qrCodeId=all`;
-
-    //   if (fromEpoch && toEpochVal) {
-    //     historyUrl += `&from=${fromEpoch}&to=${toEpochVal}&var-DateFrom=${fromDate}&var-DateTo=${toDate}`;
-    //     extraUrl += `&from=${fromEpoch}&to=${toEpochVal}&var-DateFrom=${fromDate}&var-DateTo=${toDate}`;
-    //   }
-
-    //   document.getElementById('chart-history').src = historyUrl;
-    //   document.getElementById('chart-extra').src = extraUrl;
-    // }
 
     function loadHistoryChart() {
       const fromDate = document.getElementById("dateFrom").value;
@@ -235,11 +222,6 @@
       document.getElementById('chart-history').src = historyUrl;
       document.getElementById('chart-extra').src = extraUrl;
     }
-
-
-    document.getElementById("dateFrom").value = '';
-    document.getElementById("dateTo").value = '';
-
 
     document.getElementById("applyDateFilter").addEventListener("click", loadHistoryChart);
 
