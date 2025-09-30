@@ -177,10 +177,10 @@ export default async function qrRoutes(app: FastifyInstance) {
     const r = await pool.request()
       .input('uid', SQL.UniqueIdentifier, user.sub)
       .query(`
-        SELECT q.Id, q.Name, q.Slug, t.Url AS CurrentUrl, q.CreatedAt
+        SELECT q.Id, q.Name, q.Slug, q.Tags, t.Url AS CurrentUrl, q.CreatedAt
         FROM dbo.[QR_Code] q
         LEFT JOIN dbo.[QR_Target] t ON t.Id = q.CurrentTargetId
-        WHERE q.User_Id = @uid
+        WHERE q.User_Id = @uid AND q.Archived = 0
         ORDER BY q.CreatedAt DESC
       `);
     reply.send(r.recordset);
@@ -512,7 +512,7 @@ export default async function qrRoutes(app: FastifyInstance) {
   });
 
   // ---------- Serve QR as SVG ----------
-  app.get('/qr/:slug.svg', async (req, reply) => {
+  app.get('/qr/:slug/svg', async (req, reply) => {
     const { slug } = req.params as any;
     const debug = (req.query as any)?.debug === '1';
     const pool = await getPool();
@@ -540,6 +540,61 @@ export default async function qrRoutes(app: FastifyInstance) {
     if (href) svg = injectLogoIntoSvg(svg, href, Number(design.logoSizePct) || 22, debug, bg, fg);
 
     reply.header('Content-Type', 'image/svg+xml').send(svg);
+  });
+
+  // ---------- Get QR Code Data for Editing ----------
+  app.get('/qr/:slug/data', async (req, reply) => {
+    let user: AccessPayload;
+    try {
+      user = getUserOrThrow(req);
+    } catch {
+      return reply.code(401).send('Unauthorized');
+    }
+
+    const { slug } = req.params as any;
+    const pool = await getPool();
+    
+    const r = await pool.request()
+      .input('uid', SQL.UniqueIdentifier, user.sub)
+      .input('slug', SQL.NVarChar(64), slug)
+      .query(`
+        SELECT q.Id, q.Name, q.Slug, q.Design, q.Tags, t.Url, t.UTM
+        FROM dbo.[QR_Code] q
+        LEFT JOIN dbo.[QR_Target] t ON t.Id = q.CurrentTargetId
+        WHERE q.User_Id = @uid AND q.Slug = @slug AND q.Archived = 0
+      `);
+
+    if (!r.recordset.length) {
+      return reply.code(404).send('QR Code not found');
+    }
+
+    const qrData = r.recordset[0];
+    
+    // Parse design and UTM data
+    let design = {};
+    let utm = {};
+    
+    try {
+      design = qrData.Design ? JSON.parse(qrData.Design) : {};
+    } catch (error) {
+      console.error('Error parsing design:', error);
+    }
+    
+    try {
+      utm = qrData.UTM ? JSON.parse(qrData.UTM) : {};
+    } catch (error) {
+      console.error('Error parsing UTM:', error);
+    }
+
+    reply.send({
+      Id: qrData.Id,
+      Name: qrData.Name,
+      Slug: qrData.Slug,
+      Url: qrData.Url,
+      Design: design,
+      Tags: qrData.Tags,
+      UTM: utm
+    });
   });
 
   // ---------- Redirect ----------
@@ -671,6 +726,40 @@ export default async function qrRoutes(app: FastifyInstance) {
       `);
 
     reply.send(r.recordset);
+  });
+
+  // Get scan counts for user's QR codes
+  app.get('/api/my/qr/scans', async (req, reply) => {
+    let user: AccessPayload;
+    try {
+      user = getUserOrThrow(req);
+    } catch {
+      return reply.code(401).send('Unauthorized');
+    }
+
+    try {
+      const pool = await getPool();
+      
+      const r = await pool.request()
+        .input('uid', SQL.UniqueIdentifier, user.sub)
+        .query(`
+          SELECT c.Slug, COUNT(scans.Id) AS ScanCount
+          FROM dbo.[QR_Code] c
+          LEFT JOIN dbo.[QR_Scan] scans ON c.Id = scans.QR_Code_Id AND scans.Is_Prefetch = 0
+          WHERE c.User_Id = @uid AND c.Archived = 0
+          GROUP BY c.Slug
+        `);
+
+      const scanCounts: { [key: string]: number } = {};
+      r.recordset.forEach(row => {
+        scanCounts[row.Slug] = row.ScanCount;
+      });
+
+      return reply.send(scanCounts);
+    } catch (error) {
+      console.error('Scan counts fetch failed:', error);
+      return reply.code(500).send('Failed to fetch scan counts');
+    }
   });
 
   // CSV export

@@ -256,7 +256,9 @@
         </div>
         <div class="qr-tags">
           ${(() => {
+            console.log('Processing tags for QR:', qr.Name, 'Raw tags:', qr.Tags);
             const tags = qr.Tags ? (typeof qr.Tags === 'string' ? JSON.parse(qr.Tags) : qr.Tags) : [];
+            console.log('Parsed tags:', tags);
             return tags && tags.length > 0 ? 
               tags.map(tag => `<span class="tag" style="background-color: ${tag.color}; color: white;">${tag.name}</span>`).join('') :
               '<span class="no-tags">No tags</span>';
@@ -422,14 +424,18 @@
     // Populate tag filter
     const tagFilterOptions = document.getElementById('tagFilterOptions');
     const allTags = new Set();
+    console.log('Processing QR codes for tag filter:', rows);
     rows.forEach(qr => {
+      console.log('QR:', qr.Name, 'Tags:', qr.Tags);
       if (qr.Tags) {
         const tags = typeof qr.Tags === 'string' ? JSON.parse(qr.Tags) : qr.Tags;
+        console.log('Parsed tags for filter:', tags);
         if (Array.isArray(tags)) {
           tags.forEach(tag => allTags.add(tag.name));
         }
       }
     });
+    console.log('All unique tags found:', Array.from(allTags));
     
     // Clear existing options except "All Tags"
     tagFilterOptions.innerHTML = `
