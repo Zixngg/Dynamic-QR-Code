@@ -93,6 +93,13 @@ export default async function authRoutes(app: FastifyInstance) {
       return reply.redirect('/login.html?error=Invalid+email+or+password');
     }
 
+    // Update LastLoginAt timestamp
+    const loginTime = new Date();
+    await pool.request()
+      .input('uid', SQL.UniqueIdentifier, user.Id)
+      .input('loginTime', SQL.DateTime2, loginTime)
+      .query('UPDATE dbo.[User] SET LastLoginAt = @loginTime WHERE Id = @uid');
+
     // Create refresh session row
     const rawRefresh = randomToken(32);
     const hash = sha256Hex(rawRefresh);
