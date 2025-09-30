@@ -738,17 +738,16 @@ export default async function qrRoutes(app: FastifyInstance) {
     // Build the query with proper column names and joins
     let query = `
       SELECT 
-        s.Id,
         s.OccurredAt,
-        s.IP,
+        q.Name AS QRName,
         s.Country,
         s.Region,
         s.City,
+        s.IP,
         s.DeviceType,
         s.OS,
         s.Browser,
         s.Referer,
-        q.Name AS QRName,
         q.Slug AS QRSlug,
         t.Url AS TargetUrl
       FROM dbo.[QR_Scan] s
