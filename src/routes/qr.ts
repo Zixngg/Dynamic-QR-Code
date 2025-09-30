@@ -259,7 +259,7 @@ export default async function qrRoutes(app: FastifyInstance) {
       const logoSizePct = Math.max(10, Math.min(40, Number(body.logoSizePct || 22)));
 
       const design = JSON.stringify({ fg, bg, ec, format, logoUrl, logoSizePct });
-      
+
       // parse tags from form data
       console.log('Raw tags from form:', body.tags);
       const tags = body.tags ? JSON.parse(body.tags) : [];
@@ -471,13 +471,13 @@ export default async function qrRoutes(app: FastifyInstance) {
     const { name, slug: newSlug } = req.body as any;
 
     try {
-      const pool = await getPool();
+    const pool = await getPool();
 
       // Check if QR exists and belongs to user
       const checkResult = await pool.request()
         .input('slug', SQL.NVarChar, slug)
-        .input('uid', SQL.UniqueIdentifier, user.sub)
-        .query(`
+      .input('uid', SQL.UniqueIdentifier, user.sub)
+      .query(`
           SELECT Id FROM dbo.[QR_Code] 
           WHERE Slug = @slug AND User_Id = @uid AND Archived = 0
         `);
@@ -593,10 +593,10 @@ export default async function qrRoutes(app: FastifyInstance) {
         Name,
         Slug,
         Url,
-        Design: design,
+      Design: design,
         Tags: Tags,
-        UTM: utm
-      });
+      UTM: utm
+    });
     } catch (error) {
       console.error('Data fetch failed:', error);
       return reply.code(500).send('Data fetch failed');
@@ -653,7 +653,7 @@ export default async function qrRoutes(app: FastifyInstance) {
     const r = await pool.request()
     .input('slug', SQL.NVarChar(64), slug)
     .query(`
-        SELECT TOP 1 t.Url, t.UTM, c.Name, c.Tags
+        SELECT TOP 1 t.Url, t.UTM, c.Name, c.Tags, c.Id, c.CurrentTargetId
         FROM dbo.[QR_Code] c
         INNER JOIN dbo.[QR_Target] t ON c.CurrentTargetId = t.Id
         WHERE c.Slug = @slug AND c.Archived = 0
@@ -682,27 +682,31 @@ export default async function qrRoutes(app: FastifyInstance) {
       }
     }
 
-    // Log the click
+    // Log the scan
     try {
       const agent = useragent.parse(userAgent);
       const geo = geoip.lookup(ip);
       
+      // Get QR_Code_Id and Target_Id for the scan record
+      const qrCodeId = r.recordset[0].Id; // We need to get this from the first query
+      
       await pool.request()
-        .input('slug', SQL.NVarChar(64), slug)
+        .input('qrCodeId', SQL.Int, qrCodeId)
+        .input('targetId', SQL.Int, r.recordset[0].CurrentTargetId)
         .input('ip', SQL.NVarChar(45), ip)
-        .input('userAgent', SQL.NVarChar(500), userAgent)
-        .input('browser', SQL.NVarChar(100), agent.family)
-        .input('os', SQL.NVarChar(100), agent.os.family)
-        .input('device', SQL.NVarChar(100), agent.device.family)
         .input('country', SQL.NVarChar(100), geo?.country || 'Unknown')
         .input('region', SQL.NVarChar(100), geo?.region || 'Unknown')
         .input('city', SQL.NVarChar(100), geo?.city || 'Unknown')
+        .input('uaRaw', SQL.NVarChar(500), userAgent)
+        .input('os', SQL.NVarChar(100), agent.os.family)
+        .input('browser', SQL.NVarChar(100), agent.family)
+        .input('deviceType', SQL.NVarChar(100), agent.device.family)
         .query(`
-          INSERT INTO dbo.[QR_Click] (QR_Code_Slug, IP, UserAgent, Browser, OS, Device, Country, Region, City, ClickedAt)
-          VALUES (@slug, @ip, @userAgent, @browser, @os, @device, @country, @region, @city, GETDATE())
+          INSERT INTO dbo.[QR_Scan] (QR_Code_Id, Target_Id, IP, Country, Region, City, UA_Raw, OS, Browser, DeviceType, OccurredAt, Is_Prefetch)
+          VALUES (@qrCodeId, @targetId, @ip, @country, @region, @city, @uaRaw, @os, @browser, @deviceType, GETDATE(), 0)
         `);
     } catch (error) {
-      console.error('Click logging failed:', error);
+      console.error('Scan logging failed:', error);
     }
 
     return reply.redirect(Url);
@@ -813,6 +817,40 @@ export default async function qrRoutes(app: FastifyInstance) {
     } catch (error) {
       console.error('CSV Export Error:', error);
       reply.code(500).send({ error: 'Failed to export data' });
+    }
+  });
+
+  // Get scan counts for user's QR codes
+  app.get('/api/my/qr/scans', async (req, reply) => {
+    let user: AccessPayload;
+    try {
+      user = getUserOrThrow(req);
+    } catch {
+      return reply.code(401).send('Unauthorized');
+    }
+
+    try {
+      const pool = await getPool();
+      
+      const r = await pool.request()
+        .input('uid', SQL.UniqueIdentifier, user.sub)
+        .query(`
+          SELECT c.Slug, COUNT(scans.Id) AS ScanCount
+          FROM dbo.[QR_Code] c
+          LEFT JOIN dbo.[QR_Scan] scans ON c.Id = scans.QR_Code_Id AND scans.Is_Prefetch = 0
+          WHERE c.User_Id = @uid AND c.Archived = 0
+          GROUP BY c.Slug
+        `);
+
+      const scanCounts: { [key: string]: number } = {};
+      r.recordset.forEach(row => {
+        scanCounts[row.Slug] = row.ScanCount;
+      });
+
+      return reply.send(scanCounts);
+    } catch (error) {
+      console.error('Scan counts fetch failed:', error);
+      return reply.code(500).send('Failed to fetch scan counts');
     }
   });
 

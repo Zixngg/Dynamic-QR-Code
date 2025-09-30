@@ -65,6 +65,13 @@
   border-bottom: 1px solid var(--border);
 }
 
+.form-header .sub {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0 0 18px 0;
+  line-height: 1.4;
+}
+
 .progress-indicator {
   display: flex;
   justify-content: space-between;

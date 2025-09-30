@@ -34,7 +34,7 @@
 <main class="list">
   <div class="list-header">
     <div class="header-content">
-      <h1>My QR Codes</h1>
+  <h1>My QR Codes</h1>
       <p class="sub">Click a link to open its dynamic redirect URL, or edit to change the destination.</p>
     </div>
     <div class="search-container">
@@ -42,9 +42,18 @@
       <div class="search-icon">🔍</div>
     </div>
     <div class="filter-container">
-      <select id="tagFilter" class="filter-select">
-        <option value="">All Tags</option>
-      </select>
+      <div class="multi-select-wrapper">
+        <div class="multi-select-header" id="tagFilterHeader">
+          <span id="tagFilterText">All Tags</span>
+          <span class="dropdown-arrow">▼</span>
+        </div>
+        <div class="multi-select-options" id="tagFilterOptions" style="display: none;">
+          <div class="option-item">
+            <input type="checkbox" id="allTags" checked>
+            <label for="allTags">All Tags</label>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -105,6 +114,7 @@
   let currentPage = 1;
   const itemsPerPage = 6;
   let filteredQRCodes = [];
+  let selectedTags = new Set(); // Track selected tags
 
   // Pagination functionality
   function updatePagination() {
@@ -207,17 +217,20 @@
   }
 
   // Search functionality
-  function filterQRCodes(searchTerm, tagFilter) {
+  function filterQRCodes(searchTerm, selectedTagsSet) {
     filteredQRCodes = allQRCodes.filter(qr => 
       qr.Name.toLowerCase().includes(searchTerm.toLowerCase())
     );
     
     // Apply tag filter
-    if (tagFilter) {
+    if (selectedTagsSet && selectedTagsSet.size > 0) {
       filteredQRCodes = filteredQRCodes.filter(qr => {
         if (!qr.Tags) return false;
         const tags = typeof qr.Tags === 'string' ? JSON.parse(qr.Tags) : qr.Tags;
-        return Array.isArray(tags) && tags.some(tag => tag.name === tagFilter);
+        if (!Array.isArray(tags)) return false;
+        
+        // Check if QR code has any of the selected tags
+        return tags.some(tag => selectedTagsSet.has(tag.name));
       });
     }
     
@@ -239,6 +252,7 @@
           <h3 class="qr-name">${qr.Name}</h3>
           <p class="qr-slug">${qr.Slug}</p>
           <p class="qr-date">Created ${new Date(qr.CreatedAt).toLocaleDateString()}</p>
+          <p class="qr-scans">📊 ${qr.ScanCount || 0} scans</p>
         </div>
         <div class="qr-tags">
           ${(() => {
@@ -266,14 +280,73 @@
     document.getElementById('qrGrid').appendChild(card);
   }
 
+  // Multi-select functionality
+  function toggleTagFilter() {
+    const options = document.getElementById('tagFilterOptions');
+    const arrow = document.querySelector('.dropdown-arrow');
+    
+    if (options.style.display === 'none') {
+      options.style.display = 'block';
+      arrow.textContent = '▲';
+    } else {
+      options.style.display = 'none';
+      arrow.textContent = '▼';
+    }
+  }
+
+  function updateTagFilterText() {
+    const text = document.getElementById('tagFilterText');
+    if (selectedTags.size === 0) {
+      text.textContent = 'All Tags';
+    } else if (selectedTags.size === 1) {
+      text.textContent = Array.from(selectedTags)[0];
+    } else {
+      text.textContent = `${selectedTags.size} tags selected`;
+    }
+  }
+
+  function handleTagSelection(tagName, isChecked) {
+    if (tagName === 'allTags') {
+      if (isChecked) {
+        selectedTags.clear();
+        // Uncheck all other checkboxes
+        document.querySelectorAll('.option-item input[type="checkbox"]:not(#allTags)').forEach(cb => {
+          cb.checked = false;
+        });
+      }
+    } else {
+      if (isChecked) {
+        selectedTags.add(tagName);
+        // Uncheck "All Tags" if a specific tag is selected
+        document.getElementById('allTags').checked = false;
+      } else {
+        selectedTags.delete(tagName);
+        // Check "All Tags" if no specific tags are selected
+        if (selectedTags.size === 0) {
+          document.getElementById('allTags').checked = true;
+        }
+      }
+    }
+    
+    updateTagFilterText();
+    filterQRCodes(document.getElementById('searchInput').value, selectedTags);
+  }
+
   // Search input event listener
   document.getElementById('searchInput').addEventListener('input', (e) => {
-    filterQRCodes(e.target.value, document.getElementById('tagFilter').value);
+    filterQRCodes(e.target.value, selectedTags);
   });
   
-  // Tag filter event listener
-  document.getElementById('tagFilter').addEventListener('change', (e) => {
-    filterQRCodes(document.getElementById('searchInput').value, e.target.value);
+  // Multi-select event listeners
+  document.getElementById('tagFilterHeader').addEventListener('click', toggleTagFilter);
+  
+  // Close dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    const wrapper = document.querySelector('.multi-select-wrapper');
+    if (!wrapper.contains(e.target)) {
+      document.getElementById('tagFilterOptions').style.display = 'none';
+      document.querySelector('.dropdown-arrow').textContent = '▼';
+    }
   });
 
   // Pagination button event listeners
@@ -315,7 +388,24 @@
     const rows = await r.json();
     console.log('QR codes received:', rows);
     
-    allQRCodes = rows;
+    // Fetch scan counts
+    console.log('Fetching scan counts...');
+    const scanResponse = await fetch('/api/my/qr/scans', { credentials:'include' });
+    let scanCounts = {};
+    if (scanResponse.ok) {
+      scanCounts = await scanResponse.json();
+      console.log('Scan counts received:', scanCounts);
+    } else {
+      console.warn('Failed to fetch scan counts:', scanResponse.status);
+    }
+    
+    // Merge scan counts with QR data
+    const rowsWithScans = rows.map(qr => ({
+      ...qr,
+      ScanCount: scanCounts[qr.Slug] || 0
+    }));
+    
+    allQRCodes = rowsWithScans;
 
     if (rows.length === 0) {
       document.getElementById('qrGrid').innerHTML = `
@@ -330,7 +420,7 @@
     }
 
     // Populate tag filter
-    const tagFilter = document.getElementById('tagFilter');
+    const tagFilterOptions = document.getElementById('tagFilterOptions');
     const allTags = new Set();
     rows.forEach(qr => {
       if (qr.Tags) {
@@ -342,14 +432,22 @@
     });
     
     // Clear existing options except "All Tags"
-    tagFilter.innerHTML = '<option value="">All Tags</option>';
+    tagFilterOptions.innerHTML = `
+      <div class="option-item">
+        <input type="checkbox" id="allTags" checked onchange="handleTagSelection('allTags', this.checked)">
+        <label for="allTags">All Tags</label>
+      </div>
+    `;
     
     // Add tag options
     Array.from(allTags).sort().forEach(tagName => {
-      const option = document.createElement('option');
-      option.value = tagName;
-      option.textContent = tagName;
-      tagFilter.appendChild(option);
+      const optionItem = document.createElement('div');
+      optionItem.className = 'option-item';
+      optionItem.innerHTML = `
+        <input type="checkbox" id="tag_${tagName.replace(/\s+/g, '_')}" onchange="handleTagSelection('${tagName}', this.checked)">
+        <label for="tag_${tagName.replace(/\s+/g, '_')}">${tagName}</label>
+      `;
+      tagFilterOptions.appendChild(optionItem);
     });
 
     // Initialize filtered list and render first page
