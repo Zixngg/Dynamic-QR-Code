@@ -12,7 +12,7 @@
 </head>
 <body>
 <header class="header">
-  <a class="header__brand" href="/">Dynamic QR Code</a>
+  <a class="header__brand" href="/dashboard.html">Dynamic QR Code</a>
   <nav class="nav">
     <a href="/dashboard.html">Dashboard</a>
     <div class="QRCode-menu">
@@ -61,7 +61,7 @@
       <div class="form-section" data-section="1">
         <div class="section-header">
           <h3>📝 Basic Information</h3>
-          <span class="section-badge">Required</span>
+          <span class="section-badge required">Required</span>
         </div>
         
         <div class="row">
@@ -93,110 +93,182 @@
           <input class="input" type="url" name="url" placeholder="https://example.com/landing-page" required>
           <div class="help">The webpage users will see after scanning your QR code. UTM parameters will be added automatically if configured below.</div>
         </div>
+        
+        <div class="row">
+          <label class="input-label">
+            <span class="label-text">Tags</span>
+            <span class="label-optional">Optional</span>
+          </label>
+          <div class="tags-input-container">
+            <div class="tags-display" id="tagsDisplay"></div>
+            <div class="tag-input-row">
+              <input type="text" id="tagNameInput" placeholder="Tag name" class="input">
+              <input type="color" id="tagColorInput" value="#4ecdc4" class="color-picker">
+              <button type="button" id="addTagBtn" class="btn btn-secondary">Add</button>
+            </div>
+          </div>
+          <div class="help">Add tags to organize your QR codes. You can filter by tags later.</div>
+          <input type="hidden" name="tags" id="tagsHidden">
+        </div>
       </div>
 
       <!-- Section 2: UTM Tracking -->
-      <div class="form-section" data-section="1">
-        <div class="section-header">
+      <div class="form-section collapsible" data-section="1">
+        <div class="section-header" onclick="toggleSection(this)">
           <h3>📊 UTM Tracking</h3>
-          <span class="section-badge optional">Optional</span>
-        </div>
-        <div class="section-description">
-          Track your QR code performance with UTM parameters. These help you identify traffic sources in Google Analytics.
-        </div>
-        
-        <div class="row row-inline">
-          <div class="input-group">
-            <label class="input-label">utm_source</label>
-            <input class="input" type="text" name="utm_source" placeholder="e.g., flyer, poster, business-card">
-            <div class="help">Where did users find this QR code?</div>
+          <div class="header-right">
+            <span class="section-badge optional">Optional</span>
+            <span class="toggle-icon">▼</span>
           </div>
-          <div class="input-group">
-            <label class="input-label">utm_medium</label>
-            <input class="input" type="text" name="utm_medium" placeholder="e.g., qr, print, digital">
-            <div class="help">What type of medium?</div>
+        </div>
+        <div class="section-content" style="display: none;">
+          <div class="section-description">
+            Track your QR code performance with UTM parameters. These help you identify traffic sources in Google Analytics.
           </div>
-          <div class="input-group">
-            <label class="input-label">utm_campaign</label>
-            <input class="input" type="text" name="utm_campaign" placeholder="e.g., summer2024, launch-event">
-            <div class="help">What campaign is this for?</div>
+          
+          <div class="row row-inline">
+            <div class="input-group">
+              <label class="input-label">utm_source</label>
+              <input class="input" type="text" name="utm_source" placeholder="e.g., flyer, poster, business-card">
+              <div class="help">Where did users find this QR code?</div>
+            </div>
+            <div class="input-group">
+              <label class="input-label">utm_medium</label>
+              <input class="input" type="text" name="utm_medium" placeholder="e.g., qr, print, digital">
+              <div class="help">What type of medium?</div>
+            </div>
+            <div class="input-group">
+              <label class="input-label">utm_campaign</label>
+              <input class="input" type="text" name="utm_campaign" placeholder="e.g., summer2024, launch-event">
+              <div class="help">What campaign is this for?</div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Section 3: Design & Appearance -->
-      <div class="form-section" data-section="2">
-        <div class="section-header">
+      <!-- Design and Preview Side-by-Side -->
+      <div class="form-section collapsible" data-section="2">
+        <div class="section-header" onclick="toggleSection(this)">
           <h3>🎨 Design & Appearance</h3>
-          <span class="section-badge">Customize</span>
-        </div>
-        
-        <div class="design-grid">
-          <div class="design-group">
-            <label class="input-label">Colors</label>
-            <div class="color-inputs">
-              <div class="color-input">
-                <label class="color-label">Foreground</label>
-                <input class="input color-picker" type="color" name="fg" value="#0b3d91">
-                <span class="color-value">#0b3d91</span>
-              </div>
-              <div class="color-input">
-                <label class="color-label">Background</label>
-                <input class="input color-picker" type="color" name="bg" value="#ffffff">
-                <span class="color-value">#ffffff</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="design-group">
-            <label class="input-label">Error Correction</label>
-            <select class="input" name="ec">
-              <option value="L">L (7%) - Low</option>
-              <option value="M" selected>M (15%) - Medium</option>
-              <option value="Q">Q (25%) - High</option>
-              <option value="H">H (30%) - Highest</option>
-            </select>
-            <div class="help">Higher levels allow more damage before the QR becomes unreadable.</div>
-          </div>
-
-          <div class="design-group">
-            <label class="input-label">Output Format</label>
-            <select class="input" name="format">
-              <option value="svg" selected>SVG - Scalable Vector</option>
-              <option value="png" disabled>PNG - Raster Image (Coming Soon)</option>
-            </select>
-            <div class="help">SVG is recommended for web use as it scales perfectly.</div>
+          <div class="header-right">
+            <span class="section-badge optional">Optional</span>
+            <span class="toggle-icon">▼</span>
           </div>
         </div>
-
-        <div class="row">
-          <label class="input-label">
-            <span class="label-text">Center Logo</span>
-            <span class="label-optional">Optional</span>
-          </label>
-          <div class="logo-upload-area">
-            <div class="logo-upload-box" id="logoUploadBox">
-              <div class="upload-icon">📁</div>
-              <div class="upload-text">
-                <span class="upload-title">Click to upload logo</span>
-                <span class="upload-subtitle">PNG, JPG, SVG up to 5MB</span>
+        <div class="section-content" style="display: none;">
+          <div class="design-preview-container">
+            <!-- Section 3: Design & Appearance -->
+            <div class="form-section" data-section="2">
+              <div class="section-header">
+                <h3>🎨 Design & Appearance</h3>
+                <span class="section-badge">Customize</span>
               </div>
-              <input type="file" id="logoInput" accept=".png,.jpg,.jpeg,.svg" style="display: none;" />
+              
+              <div class="design-grid">
+                <div class="design-group">
+                  <label class="input-label">Colors</label>
+                  <div class="color-inputs">
+                    <div class="color-input">
+                      <label class="color-label">Foreground</label>
+                      <input class="input color-picker" type="color" name="fg" value="#0b3d91">
+                      <span class="color-value">#0b3d91</span>
+                    </div>
+                    <div class="color-input">
+                      <label class="color-label">Background</label>
+                      <input class="input color-picker" type="color" name="bg" value="#ffffff">
+                      <span class="color-value">#ffffff</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="design-group">
+                  <label class="input-label">Error Correction</label>
+                  <select class="input" name="ec">
+                    <option value="L">L (7%) - Low</option>
+                    <option value="M" selected>M (15%) - Medium</option>
+                    <option value="Q">Q (25%) - High</option>
+                    <option value="H">H (30%) - Highest</option>
+                  </select>
+                  <div class="help">Higher levels allow more damage before the QR becomes unreadable.</div>
+                </div>
+
+              </div>
+
+              <div class="row">
+                <label class="input-label">
+                  <span class="label-text">Center Logo</span>
+                  <span class="label-optional">Optional</span>
+                </label>
+                <div class="logo-upload-area">
+                  <div class="logo-upload-box" id="logoUploadBox">
+                    <div class="upload-icon">📁</div>
+                    <div class="upload-text">
+                      <span class="upload-title">Click to upload logo</span>
+                      <span class="upload-subtitle">PNG, JPG, SVG up to 5MB</span>
+                    </div>
+                    <input type="file" id="logoInput" accept=".png,.jpg,.jpeg,.svg" style="display: none;" />
+                  </div>
+                  <div class="logo-preview" id="logoPreview" style="display: none;">
+                    <img id="logoThumb" alt="logo preview">
+                    <div class="logo-controls">
+                      <button type="button" class="btn-remove-logo" id="removeLogo">✕</button>
+                      <div class="logo-size-control">
+                        <label>Size: </label>
+                        <input class="input" type="number" name="logoSizePct" id="logoSizePct" min="10" max="40" value="22">
+                        <span>%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <input type="hidden" name="logoUrl" id="logoUrl">
+                <div class="help">Add your logo to the center of the QR code. Recommended size: 15-25% for best readability.</div>
+              </div>
             </div>
-            <div class="logo-preview" id="logoPreview" style="display: none;">
-              <img id="logoThumb" alt="logo preview">
-              <div class="logo-controls">
-                <button type="button" class="btn-remove-logo" id="removeLogo">✕</button>
-                <div class="logo-size-control">
-                  <label>Size: </label>
-                  <input class="input" type="number" name="logoSizePct" id="logoSizePct" min="10" max="40" value="22">
-                  <span>%</span>
+
+            <!-- Live Preview -->
+            <div class="form-section" data-section="3">
+              <div class="section-header">
+                <h3>🎯 Live Preview</h3>
+                <span class="section-badge">Preview</span>
+              </div>
+              
+              <div class="preview-box">
+                <div class="preview-status">
+                  <span class="status-indicator" id="previewStatus">Ready</span>
+                </div>
+                <div class="qr-container">
+                  <div id="previewSvg" class="qr-svg-container"></div>
+                  <div class="qr-overlay" id="qrOverlay">
+                    <div class="scan-hint">📱 Scan to test</div>
+                  </div>
                 </div>
               </div>
+              
+              <div class="preview-info">
+                <div class="info-item">
+                  <span class="info-label">Short Link:</span>
+                  <span class="info-value" id="previewShortLink">yourdomain.com/r/abc123</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Destination:</span>
+                  <span class="info-value" id="previewDestination">https://example.com</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Format:</span>
+                  <span class="info-value" id="previewFormat">SVG</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Error Correction:</span>
+                  <span class="info-value" id="previewEC">M (15%)</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Colors:</span>
+                  <span class="info-value" id="previewColors">#0b3d91 on #ffffff</span>
+                </div>
+              </div>
+              
             </div>
           </div>
-          <input type="hidden" name="logoUrl" id="logoUrl">
-          <div class="help">Add your logo to the center of the QR code. Recommended size: 15-25% for best readability.</div>
         </div>
       </div>
 
@@ -207,60 +279,10 @@
         </button>
         <div class="form-note">
           <span class="note-icon">💡</span>
-          You can always edit these settings later from your dashboard.
+          You can always edit these settings later from "My QR Codes" page.
         </div>
       </div>
     </form>
-
-    <!-- RIGHT: live preview -->
-    <div class="preview-card">
-      <div class="preview-header">
-        <h2>🎯 Live Preview</h2>
-        <div class="preview-status">
-          <span class="status-indicator" id="previewStatus">Ready</span>
-        </div>
-      </div>
-      
-      <div class="preview-box">
-        <div class="qr-container">
-          <div id="previewSvg" class="qr-svg-container"></div>
-          <div class="qr-overlay" id="qrOverlay">
-            <div class="scan-hint">📱 Scan to test</div>
-          </div>
-        </div>
-      </div>
-      
-      <div class="preview-info">
-        <div class="info-item">
-          <span class="info-label">Short Link:</span>
-          <span class="info-value" id="previewShortLink">yourdomain.com/r/abc123</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label">Destination:</span>
-          <span class="info-value" id="previewDestination">https://example.com</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label">Format:</span>
-          <span class="info-value" id="previewFormat">SVG</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label">Error Correction:</span>
-          <span class="info-value" id="previewEC">M (15%)</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label">Colors:</span>
-          <span class="info-value" id="previewColors">#0b3d91 on #ffffff</span>
-        </div>
-      </div>
-      
-      <div class="preview-actions">
-        <button class="btn btn-secondary" id="downloadPreview" disabled>
-          <span class="btn-icon">⬇️</span>
-          Download Preview
-        </button>
-        <div class="help">Preview updates automatically as you make changes. Download will be available after creation.</div>
-      </div>
-    </div>
   </div>
 </main>
 
@@ -268,6 +290,22 @@
   // dropdowns
   function toggleProfileMenu(){ const dd=document.getElementById('profileDropdown'); dd.style.display=dd.style.display==='block'?'none':'block'; }
   function toggleQRCodeMenu(){ const dd=document.getElementById('QRCodeDropdown'); dd.style.display=dd.style.display==='block'?'none':'block'; }
+  
+  // section toggle
+  function toggleSection(header) {
+    const section = header.closest('.collapsible');
+    const content = section.querySelector('.section-content');
+    const icon = header.querySelector('.toggle-icon');
+    
+    if (content.style.display === 'none') {
+      content.style.display = 'block';
+      icon.textContent = '▲';
+    } else {
+      content.style.display = 'none';
+      icon.textContent = '▼';
+    }
+  }
+  
   document.addEventListener('click', (e) => {
     ['profile','QRCode'].forEach(k=>{
       const menu=document.getElementById(k+'Dropdown');
@@ -283,6 +321,65 @@
     msgEl.className='error'; 
     msgEl.textContent=params.get('error'); 
   }
+
+  // Tag management
+  let tags = [];
+  
+  function addTag() {
+    const nameInput = document.getElementById('tagNameInput');
+    const colorInput = document.getElementById('tagColorInput');
+    const name = nameInput.value.trim();
+    
+    if (!name) return;
+    
+    // Check if tag already exists
+    if (tags.some(tag => tag.name.toLowerCase() === name.toLowerCase())) {
+      alert('Tag already exists');
+      return;
+    }
+    
+    tags.push({
+      name: name,
+      color: colorInput.value
+    });
+    
+    updateTagsDisplay();
+    updateTagsHidden();
+    
+    nameInput.value = '';
+    colorInput.value = '#4ecdc4';
+  }
+  
+  function removeTag(index) {
+    tags.splice(index, 1);
+    updateTagsDisplay();
+    updateTagsHidden();
+  }
+  
+  function updateTagsDisplay() {
+    const display = document.getElementById('tagsDisplay');
+    display.innerHTML = tags.map((tag, index) => `
+      <span class="tag" style="background-color: ${tag.color}; color: white;">
+        ${tag.name}
+        <button type="button" onclick="removeTag(${index})" class="tag-remove">×</button>
+      </span>
+    `).join('');
+  }
+  
+  function updateTagsHidden() {
+    const tagsJson = JSON.stringify(tags);
+    document.getElementById('tagsHidden').value = tagsJson;
+    console.log('Updated hidden tags field:', tagsJson);
+  }
+  
+  // Tag input event listeners
+  document.getElementById('addTagBtn').addEventListener('click', addTag);
+  document.getElementById('tagNameInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addTag();
+    }
+  });
 
   // Progress indicator
   function updateProgressIndicator() {
@@ -328,7 +425,7 @@
     const fg = document.querySelector('[name="fg"]').value;
     const bg = document.querySelector('[name="bg"]').value;
     const ec = document.querySelector('[name="ec"]').value;
-    const format = document.querySelector('[name="format"]').value;
+    const format = 'svg'; // Always use SVG format
     const logoUrl = document.getElementById('logoUrl').value || '';
     const logoSizePct = document.getElementById('logoSizePct').value || '22';
     const url = document.querySelector('[name="url"]').value || '';
@@ -380,7 +477,7 @@
     fetch(previewUrl_full)
       .then(response => {
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         return response.text();
       })
@@ -389,6 +486,12 @@
         previewStatus.textContent = 'Ready';
         previewStatus.className = 'status-indicator';
         console.log('Preview loaded successfully');
+        
+        // Remove any existing error messages
+        const existingError = document.querySelector('.preview-error');
+        if (existingError) {
+          existingError.remove();
+        }
         
         // Debug: Check if SVG contains image elements
         const svgElement = previewSvg.querySelector('svg');
@@ -551,6 +654,9 @@
     });
     
     form.addEventListener('submit', (e) => {
+      // Ensure tags are updated before submission
+      updateTagsHidden();
+      
       let isValid = true;
       inputs.forEach(input => {
         if (!validateField({ target: input })) {

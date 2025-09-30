@@ -13,98 +13,73 @@ const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || 'http://localhost:8080';
 
 // ---------- helpers ----------
 function getUserOrThrow(req: FastifyRequest): AccessPayload {
-  const at = (req.cookies as any)?.at as string | undefined;
-  if (!at) throw new Error('unauthorized');
-  try { return verifyAccess(at); } catch { throw new Error('unauthorized'); }
-}
-
-function normalizeUrl(u: string) {
+  const token = (req.cookies?.at as string) || '';
+  if (!token) throw new Error('Unauthorized');
   try {
-    const url = new URL(u);
-    if (!/^https?:$/i.test(url.protocol)) throw new Error('Only http/https allowed');
-    return url.toString();
-  } catch { throw new Error('Invalid URL'); }
+    const user = verifyAccess(token);
+    return user;
+  } catch {
+    throw new Error('Unauthorized');
+  }
 }
 
-function injectLogoIntoSvg(
-  svg: string,
-  logoUrl: string,
-  sizePct = 22,
-  debug = false,
-  backgroundColor = '#ffffff',
-  borderColor = '#000000'
-): string {
-  // Determine canvas size from SVG attributes (width/height or viewBox)
-  let canvasSize = 512;
-  let viewBoxSize = 29; // Default QR code viewBox size
+function injectLogoIntoSvg(svg: string, logoHref: string, logoSizePct: number, debug: boolean, bg: string, fg: string): string {
+  const logoSize = Math.max(10, Math.min(40, logoSizePct));
+  const logoX = 50 - logoSize / 2;
+  const logoY = 50 - logoSize / 2;
   
-  const whMatch = svg.match(/<svg[^>]*\bwidth=\"(\d+)\"[^>]*\bheight=\"(\d+)\"/i);
-  const vbMatch = svg.match(/viewBox=\"\s*0\s+0\s+(\d+)\s+(\d+)\s*\"/i);
-  
-  if (whMatch) {
-    canvasSize = Math.min(parseInt(whMatch[1], 10) || 512, parseInt(whMatch[2], 10) || 512);
+  // Find the viewBox and extract dimensions
+  const viewBoxMatch = svg.match(/viewBox="([^"]+)"/);
+  if (!viewBoxMatch) {
+    console.warn('No viewBox found in SVG, skipping logo injection');
+    return svg;
   }
   
-  if (vbMatch) {
-    viewBoxSize = Math.min(parseInt(vbMatch[1], 10) || 29, parseInt(vbMatch[2], 10) || 29);
+  const viewBoxParts = viewBoxMatch[1].split(/\s+/).map(Number);
+  if (viewBoxParts.length < 4) {
+    console.warn('Invalid viewBox format:', viewBoxMatch[1]);
+    return svg;
   }
   
-  // Calculate logo size and position in viewBox coordinates
-  const logoSizeInViewBox = (sizePct / 100) * viewBoxSize;
-  const x = (viewBoxSize - logoSizeInViewBox) / 2;
-  const y = (viewBoxSize - logoSizeInViewBox) / 2;
-
-  // Ensure xlink namespace exists for broader browser support
-  if (!/xmlns:xlink=/i.test(svg)) {
-    svg = svg.replace(
-      /<svg(\s[^>]*)?>/i,
-      (m) => m.replace('>', ' xmlns:xlink="http://www.w3.org/1999/xlink">')
-    );
+  const [, , width, height] = viewBoxParts;
+  if (!width || !height || isNaN(width) || isNaN(height)) {
+    console.warn('Invalid viewBox dimensions:', { width, height });
+    return svg;
   }
-
-  const debugRect = debug ? `<rect x="${x}" y="${y}" width="${logoSizeInViewBox}" height="${logoSizeInViewBox}" fill="none" stroke="red" stroke-width="0.1" />` : '';
-  const debugText = debug ? `<text x="1" y="2" fill="red" font-size="1">logoSize=${logoSizeInViewBox.toFixed(2)} x=${x.toFixed(2)} y=${y.toFixed(2)}</text>` : '';
-  // Knockout rectangle to improve contrast (expand slightly beyond logo)
-  const pad = Math.max(0.1, logoSizeInViewBox * 0.06);
-  const kx = Math.max(0, x - pad);
-  const ky = Math.max(0, y - pad);
-  const kw = Math.min(viewBoxSize, logoSizeInViewBox + pad * 2);
-  const kh = Math.min(viewBoxSize, logoSizeInViewBox + pad * 2);
-  const knockout = `<rect x="${kx}" y="${ky}" width="${kw}" height="${kh}" rx="${pad}" ry="${pad}" fill="${backgroundColor}" />`;
-  const imageTag = `<image href="${logoUrl}" x="${x}" y="${y}" width="${logoSizeInViewBox}" height="${logoSizeInViewBox}" preserveAspectRatio="xMidYMid meet" />`;
-  const borderRect = `<rect x="${kx}" y="${ky}" width="${kw}" height="${kh}" rx="${pad}" ry="${pad}" fill="none" stroke="${borderColor}" stroke-width="0.1" />`;
-  return svg.replace('</svg>', `${debugRect}${debugText}${knockout}${imageTag}${borderRect}</svg>`);
+  
+  const logoSizePx = (height * logoSize) / 100;
+  const logoXpx = (height * logoX) / 100;
+  const logoYpx = (height * logoY) / 100;
+  
+  // Add white background circle/rect behind logo
+  const bgElement = debug 
+    ? `<rect x="${logoXpx - logoSizePx * 0.1}" y="${logoYpx - logoSizePx * 0.1}" width="${logoSizePx * 1.2}" height="${logoSizePx * 1.2}" fill="${bg}" stroke="${fg}" stroke-width="1"/>`
+    : `<circle cx="${logoXpx + logoSizePx/2}" cy="${logoYpx + logoSizePx/2}" r="${logoSizePx * 0.6}" fill="${bg}"/>`;
+  
+  // Add logo image
+  const logoElement = `<image href="${logoHref}" x="${logoXpx}" y="${logoYpx}" width="${logoSizePx}" height="${logoSizePx}"/>`;
+  
+  // Insert before closing </svg>
+  return svg.replace('</svg>', `${bgElement}${logoElement}</svg>`);
 }
 
 function getSingaporeRegion(lat: number, lon: number): string | null {
-  // Central Region (roughly 1.27-1.31 lat, 103.82-103.88 lon)
-  if (lat >= 1.27 && lat <= 1.31 && lon >= 103.82 && lon <= 103.88) {
-    return 'Central';
+  // Singapore bounding box
+  const singaporeBounds = {
+    north: 1.478,
+    south: 1.149,
+    east: 104.1,
+    west: 103.6
+  };
+
+  if (lat >= singaporeBounds.south && lat <= singaporeBounds.north &&
+      lon >= singaporeBounds.west && lon <= singaporeBounds.east) {
+    return 'Singapore';
   }
-  
-  // North Region (roughly 1.38-1.45 lat, 103.74-103.85 lon)
-  if (lat >= 1.38 && lat <= 1.45 && lon >= 103.74 && lon <= 103.85) {
-    return 'North';
-  }
-  
-  // North-East Region (roughly 1.32-1.42 lat, 103.87-103.96 lon)
-  if (lat >= 1.32 && lat <= 1.42 && lon >= 103.87 && lon <= 103.96) {
-    return 'North-East';
-  }
-  
-  // East Region (roughly 1.31-1.37 lat, 103.88-103.99 lon)
-  if (lat >= 1.31 && lat <= 1.37 && lon >= 103.88 && lon <= 103.99) {
-    return 'East';
-  }
-  
-  // West Region (roughly 1.30-1.39 lat, 103.68-103.78 lon)
-  if (lat >= 1.30 && lat <= 1.39 && lon >= 103.68 && lon <= 103.78) {
-    return 'West';
-  }
-  
-  // Default fallback if coordinates don't match any region
+
   return 'Singapore';
 }
+
 
 export default async function qrRoutes(app: FastifyInstance) {
   async function resolveLogoHref(logoUrl: string): Promise<string> {
@@ -136,22 +111,25 @@ export default async function qrRoutes(app: FastifyInstance) {
       return logoUrl;
     }
   }
-  // ---------- Live preview (SVG) ----------
+  // ---------- Generic QR Preview (for generation form) ----------
   app.get('/qr/preview', async (req, reply) => {
-    const q = (req.query as any) || {};
-    const fg = String(q.fg || '#0b3d91');
-    const bg = String(q.bg || '#ffffff');
-    const ec = String(q.ec || 'M').toUpperCase();
-    const logoUrl = q.logoUrl ? await resolveLogoHref(String(q.logoUrl)) : '';
-    const logoSizePct = Number(q.logoSizePct || 22);
-    const debug = String(q.debug || '0') === '1';
+    const query = req.query as any;
+    const debug = query?.debug === '1';
 
-    console.log('Preview request:', { fg, bg, ec, logoUrl: logoUrl ? 'data:...' : 'none', logoSizePct, debug });
+    console.log('Preview request received:', query);
 
+    const fg = query.fg || '#0b3d91';
+    const bg = query.bg || '#ffffff';
     const ecMap: any = { L: 'low', M: 'medium', Q: 'quartile', H: 'high' };
-    const errorCorrectionLevel = ecMap[ec] || 'medium';
+    const errorCorrectionLevel = ecMap[(query.ec || 'M')] || 'medium';
+    const logoUrl = query.logoUrl || '';
+    const logoSizePct = Number(query.logoSizePct || 22);
+    const previewUrl = query.url || 'https://example.com/preview';
 
-    const content = 'https://preview.local/qr';
+    const content = previewUrl;
+
+    try {
+      console.log('Generating QR with:', { fg, bg, errorCorrectionLevel, logoUrl: logoUrl ? 'present' : 'none', logoSizePct, content });
 
     let svg = await QRCode.toString(content, {
       type: 'svg',
@@ -160,120 +138,116 @@ export default async function qrRoutes(app: FastifyInstance) {
       margin: 2,
       width: 512
     });
+
     if (logoUrl) {
-      console.log('Injecting logo:', { logoUrl: logoUrl.substring(0, 50) + '...', logoSizePct });
-      svg = injectLogoIntoSvg(svg, logoUrl, Number.isFinite(logoSizePct) ? logoSizePct : 22, debug, bg, fg);
+        const href = await resolveLogoHref(logoUrl);
+        if (href) svg = injectLogoIntoSvg(svg, href, logoSizePct, debug, bg, fg);
     }
 
+      console.log('QR generated successfully, SVG length:', svg.length);
     reply.header('Content-Type', 'image/svg+xml').send(svg);
+    } catch (error) {
+      console.error('Preview generation failed:', error);
+      return reply.code(500).send('Preview generation failed');
+    }
   });
-  // ---------- List my QR codes ----------
-  app.get('/api/my/qr', async (req, reply) => {
-    let user: AccessPayload;
-    try { user = getUserOrThrow(req); }
-    catch { return reply.code(401).send({ error: 'unauthorized' }); }
+
+  // ---------- Live preview (SVG) ----------
+  app.get('/qr/:slug/preview', async (req, reply) => {
+    const { slug } = req.params as any;
+    const debug = (req.query as any)?.debug === '1';
 
     const pool = await getPool();
     const r = await pool.request()
-      .input('uid', SQL.UniqueIdentifier, user.sub)
-      .query(`
-        SELECT q.Id, q.Name, q.Slug, t.Url AS CurrentUrl, q.CreatedAt
-        FROM dbo.[QR_Code] q
-        LEFT JOIN dbo.[QR_Target] t ON t.Id = q.CurrentTargetId
-        WHERE q.User_Id = @uid
-        ORDER BY q.CreatedAt DESC
-      `);
-    reply.send(r.recordset);
-  });
+      .input('slug', SQL.NVarChar(64), slug)
+      .query(`SELECT TOP 1 Design FROM dbo.[QR_Code] WHERE Slug=@slug`);
+    if (!r.recordset.length) return reply.code(404).send('Not found');
 
-  // ---------- Create QR ---------- 
-  // app.post('/qr/create', async (req, reply) => {
-  //   let user: AccessPayload;
-  //   try { user = getUserOrThrow(req); }
-  //   catch { return reply.redirect('/login.html?error=Please+log+in'); }
+    const design = JSON.parse(r.recordset[0].Design || '{}');
+    const fg = design.fg || '#0b3d91';
+    const bg = design.bg || '#ffffff';
+    const ecMap: any = { L: 'low', M: 'medium', Q: 'quartile', H: 'high' };
+    const errorCorrectionLevel = ecMap[(design.ec || 'M')] || 'medium';
 
-  //   const body = req.body as any;
-  //   const pool = await getPool();
-
-  //   try {
-  //     const name = String(body.name || '').trim();
-  //     const url = normalizeUrl(String(body.url || ''));
-
-  //     const slug = Math.random().toString(36).substring(2, 9);
-
-  //     // default design object
-  //     const design = JSON.stringify({
-  //       fg: '#0b3d91',
-  //       bg: '#ffffff',
-  //       ec: 'M',
-  //       format: 'svg',
-  //       logoUrl: null,
-  //       logoSizePct: 22
-  //     });
-
-  //     // insert QR code with design
-  //     const qrIns = await pool.request()
-  //       .input('uid', SQL.UniqueIdentifier, user.sub)
-  //       .input('name', SQL.NVarChar(200), name)
-  //       .input('slug', SQL.NVarChar(64), slug)
-  //       .input('design', SQL.NVarChar(SQL.MAX), design)
-  //       .query(`
-  //         INSERT INTO dbo.[QR_Code] (User_Id, Name, Slug, Design)
-  //         OUTPUT inserted.Id
-  //         VALUES (@uid, @name, @slug, @design);
-  //       `);
-
-  //     const qrId = qrIns.recordset[0].Id as string;
-
-  //     // create first target
-  //     const trgIns = await pool.request()
-  //       .input('qid', SQL.UniqueIdentifier, qrId)
-  //       .input('url', SQL.NVarChar(2048), url)
-  //       .input('ver', SQL.Int, 1)
-  //       .query(`
-  //         INSERT INTO dbo.[QR_Target] (QR_Code_Id, Url, [Version])
-  //         OUTPUT inserted.Id
-  //         VALUES (@qid, @url, @ver);
-  //       `);
-
-  //     const targetId = trgIns.recordset[0].Id as string;
-
-  //     await pool.request()
-  //       .input('tid', SQL.UniqueIdentifier, targetId)
-  //       .input('qid', SQL.UniqueIdentifier, qrId)
-  //       .query('UPDATE dbo.[QR_Code] SET CurrentTargetId=@tid WHERE Id=@qid;');
-
-  //     return reply.redirect(`/qr.html?success=QR+created&slug=${encodeURIComponent(slug)}`);
-  //   } catch (e: any) {
-  //     return reply.redirect(`/generateQR.html?error=${encodeURIComponent(e.message || 'Failed to create')}`);
-  //   }
-  // });
-  //Zehua
-  app.post('/qr/create', async (req, reply) => {
-    let user: AccessPayload;
-    try { user = getUserOrThrow(req); }
-    catch { return reply.redirect('/login.html?error=Please+log+in'); }
-
-    const body = req.body as any;
-    const pool = await getPool();
+    const content = `${PUBLIC_BASE_URL}/r/${slug}`;
 
     try {
-      const name = String(body.name || '').trim();
-      const url = normalizeUrl(String(body.url || ''));
+      let svg = await QRCode.toString(content, {
+        type: 'svg',
+        color: { dark: fg, light: bg },
+        errorCorrectionLevel,
+        margin: 2,
+        width: 512
+      });
 
-      // Extract UTM parameters from the request body
+      const href = design.logoUrl ? await resolveLogoHref(design.logoUrl) : '';
+      if (href) svg = injectLogoIntoSvg(svg, href, Number(design.logoSizePct) || 22, debug, bg, fg);
+      
+      reply.header('Content-Type', 'image/svg+xml').send(svg);
+    } catch (error) {
+      console.error('SVG generation failed:', error);
+      return reply.code(500).send('SVG generation failed');
+    }
+  });
+
+  // ---------- Create QR Code ----------
+  app.post('/qr/create', async (req, reply) => {
+    let user: AccessPayload;
+    try {
+      user = getUserOrThrow(req);
+    } catch {
+      return reply.redirect('/login.html');
+    }
+
+    const body = req.body as any;
+    const name = String(body.name || '').trim();
+    const url = String(body.url || '').trim();
+
+    if (!name || !url) {
+      return reply.redirect('/generateQR.html?error=Name+and+URL+are+required');
+    }
+
+    try {
+      const pool = await getPool();
+
+      // Handle UTM parameters
       const utmSource = String(body.utm_source || '').trim();
       const utmMedium = String(body.utm_medium || '').trim();
       const utmCampaign = String(body.utm_campaign || '').trim();
 
-      // Combine UTM parameters into a single JSON string for the UTM column
       const utmData = JSON.stringify({
-        source: utmSource || null,
-        medium: utmMedium || null,
-        campaign: utmCampaign || null
+        utm_source: utmSource || null,
+        utm_medium: utmMedium || null,
+        utm_campaign: utmCampaign || null
       });
 
-      const slug = Math.random().toString(36).substring(2, 9);
+      // Handle custom slug from form
+      let slug = String(body.slug || '').trim();
+      
+      // If no custom slug provided, generate a random one
+      if (!slug) {
+        slug = Math.random().toString(36).substring(2, 9);
+      } else {
+        // Validate custom slug format
+        if (!/^[a-zA-Z0-9\-]+$/.test(slug)) {
+          throw new Error('Slug can only contain letters, numbers, and hyphens');
+        }
+        if (slug.length < 3 || slug.length > 50) {
+          throw new Error('Slug must be between 3 and 50 characters');
+        }
+        if (slug.startsWith('-') || slug.endsWith('-')) {
+          throw new Error('Slug cannot start or end with a hyphen');
+        }
+        
+        // Check if slug is already taken
+        const existingSlug = await pool.request()
+          .input('slug', SQL.NVarChar(64), slug)
+          .query('SELECT TOP 1 Id FROM dbo.[QR_Code] WHERE Slug=@slug');
+        
+        if (existingSlug.recordset.length > 0) {
+          throw new Error('This custom short link is already taken. Please choose a different one.');
+        }
+      }
 
       // capture design from form selections (fallbacks match UI defaults)
       const fg = String(body.fg || '#0b3d91');
@@ -285,17 +259,24 @@ export default async function qrRoutes(app: FastifyInstance) {
       const logoSizePct = Math.max(10, Math.min(40, Number(body.logoSizePct || 22)));
 
       const design = JSON.stringify({ fg, bg, ec, format, logoUrl, logoSizePct });
+      
+      // parse tags from form data
+      console.log('Raw tags from form:', body.tags);
+      const tags = body.tags ? JSON.parse(body.tags) : [];
+      console.log('Parsed tags:', tags);
+      const tagsJson = JSON.stringify(tags);
 
-      // insert QR code with design
+      // insert QR code with design and tags
       const qrIns = await pool.request()
         .input('uid', SQL.UniqueIdentifier, user.sub)
         .input('name', SQL.NVarChar(200), name)
         .input('slug', SQL.NVarChar(64), slug)
         .input('design', SQL.NVarChar(SQL.MAX), design)
+        .input('tags', SQL.NVarChar(SQL.MAX), tagsJson)
         .query(`
-          INSERT INTO dbo.[QR_Code] (User_Id, Name, Slug, Design)
+          INSERT INTO dbo.[QR_Code] (User_Id, Name, Slug, Design, Tags)
           OUTPUT inserted.Id
-          VALUES (@uid, @name, @slug, @design);
+          VALUES (@uid, @name, @slug, @design, @tags);
         `);
 
       const qrId = qrIns.recordset[0].Id as string;
@@ -314,148 +295,100 @@ export default async function qrRoutes(app: FastifyInstance) {
 
       const targetId = trgIns.recordset[0].Id as string;
 
+      // link QR code to this target
       await pool.request()
-        .input('tid', SQL.UniqueIdentifier, targetId)
         .input('qid', SQL.UniqueIdentifier, qrId)
-        .query('UPDATE dbo.[QR_Code] SET CurrentTargetId=@tid WHERE Id=@qid;');
+        .input('tid', SQL.UniqueIdentifier, targetId)
+        .query('UPDATE dbo.[QR_Code] SET CurrentTargetId=@tid WHERE Id=@qid');
 
-      return reply.redirect(`/qr.html?success=QR+created&slug=${encodeURIComponent(slug)}`);
-    } catch (e: any) {
-      return reply.redirect(`/generateQR.html?error=${encodeURIComponent(e.message || 'Failed to create')}`);
+      return reply.redirect(`/editQR.html?slug=${encodeURIComponent(slug)}&success=QR+Code+created`);
+    } catch (error) {
+      console.error('QR creation failed:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      return reply.redirect(`/generateQR.html?error=${encodeURIComponent(errorMsg)}`);
     }
   });
 
-  // ---------- Retarget (update URL) ----------
-  // app.post('/qr/:slug/retarget', async (req, reply) => {
-  //   let user: AccessPayload;
-  //   try { user = getUserOrThrow(req); }
-  //   catch { return reply.redirect('/login.html?error=Please+log+in'); }
-
-  //   const { slug } = req.params as any;
-  //   const body = req.body as any;
-
-  //   try {
-  //     const url = normalizeUrl(String(body.url || ''));
-
-  //     const pool = await getPool();
-  //     const q = await pool.request()
-  //       .input('slug', SQL.NVarChar(64), slug)
-  //       .input('uid', SQL.UniqueIdentifier, user.sub)
-  //       .query('SELECT TOP 1 Id FROM dbo.[QR_Code] WHERE Slug=@slug AND User_Id=@uid;');
-
-  //     if (!q.recordset.length) return reply.redirect(`/qr.html?error=Not+found`);
-  //     const qrId = q.recordset[0].Id as string;
-
-  //     const verRes = await pool.request()
-  //       .input('qid', SQL.UniqueIdentifier, qrId)
-  //       .query('SELECT ISNULL(MAX([Version]),0) AS v FROM dbo.[QR_Target] WHERE QR_Code_Id=@qid;');
-  //     const nextVer = (verRes.recordset[0].v as number) + 1;
-
-  //     const trg = await pool.request()
-  //       .input('qid', SQL.UniqueIdentifier, qrId)
-  //       .input('url', SQL.NVarChar(2048), url)
-  //       .input('ver', SQL.Int, nextVer)
-  //       .query(`
-  //         INSERT INTO dbo.[QR_Target] (QR_Code_Id, Url, [Version])
-  //         OUTPUT inserted.Id
-  //         VALUES (@qid, @url, @ver);
-  //       `);
-
-  //     const targetId = trg.recordset[0].Id as string;
-
-  //     await pool.request()
-  //       .input('tid', SQL.UniqueIdentifier, targetId)
-  //       .input('qid', SQL.UniqueIdentifier, qrId)
-  //       .query('UPDATE dbo.[QR_Code] SET CurrentTargetId=@tid WHERE Id=@qid;');
-
-  //     return reply.redirect(`/editQR.html?slug=${encodeURIComponent(slug)}&success=Target+updated`);
-  //   } catch (e: any) {
-  //     return reply.redirect(`/editQR.html?slug=${encodeURIComponent(slug)}&error=${encodeURIComponent(e.message || 'Failed to update')}`);
-  //   }
-  // });
-  //Zehua
+  // ---------- Update Target URL/UTM ----------
   app.post('/qr/:slug/retarget', async (req, reply) => {
     let user: AccessPayload;
-    try { user = getUserOrThrow(req); }
-    catch { return reply.redirect('/login.html?error=Please+log+in'); }
+    try {
+      user = getUserOrThrow(req);
+    } catch {
+      return reply.redirect('/login.html');
+    }
 
     const { slug } = req.params as any;
     const body = req.body as any;
+    const url = String(body.url || '').trim();
+
+    if (!url) {
+      return reply.redirect(`/editQR.html?slug=${encodeURIComponent(slug)}&error=URL+is+required`);
+    }
 
     try {
-      const url = normalizeUrl(String(body.url || ''));
+      const pool = await getPool();
       
-      // Extract UTM parameters from the request body
+      // Handle UTM parameters
       const utmSource = String(body.utm_source || '').trim();
       const utmMedium = String(body.utm_medium || '').trim();
       const utmCampaign = String(body.utm_campaign || '').trim();
 
-      // Combine UTM parameters into a single JSON string for the UTM column
       const utmData = JSON.stringify({
-        source: utmSource || null,
-        medium: utmMedium || null,
-        campaign: utmCampaign || null
+        utm_source: utmSource || null,
+        utm_medium: utmMedium || null,
+        utm_campaign: utmCampaign || null
       });
 
-      const pool = await getPool();
-      const q = await pool.request()
+      // Get current target ID
+      const currentTarget = await pool.request()
         .input('slug', SQL.NVarChar(64), slug)
         .input('uid', SQL.UniqueIdentifier, user.sub)
-        .query('SELECT TOP 1 Id FROM dbo.[QR_Code] WHERE Slug=@slug AND User_Id=@uid;');
+        .query('SELECT TOP 1 CurrentTargetId FROM dbo.[QR_Code] WHERE Slug=@slug AND User_Id=@uid');
 
-      if (!q.recordset.length) return reply.redirect(`/qr.html?error=Not+found`);
-      const qrId = q.recordset[0].Id as string;
+      if (!currentTarget.recordset.length) {
+        return reply.redirect(`/editQR.html?slug=${encodeURIComponent(slug)}&error=Not+found`);
+      }
 
-      const verRes = await pool.request()
-        .input('qid', SQL.UniqueIdentifier, qrId)
-        .query('SELECT ISNULL(MAX([Version]),0) AS v FROM dbo.[QR_Target] WHERE QR_Code_Id=@qid;');
-      const nextVer = (verRes.recordset[0].v as number) + 1;
+      const currentTargetId = currentTarget.recordset[0].CurrentTargetId;
 
-      const trg = await pool.request()
-        .input('qid', SQL.UniqueIdentifier, qrId)
-        .input('url', SQL.NVarChar(2048), url)
-        .input('ver', SQL.Int, nextVer)
-        .input('utm', SQL.NVarChar(SQL.MAX), utmData)
-        .query(`
-          INSERT INTO dbo.[QR_Target] (QR_Code_Id, Url, [Version], UTM)
-          OUTPUT inserted.Id
-          VALUES (@qid, @url, @ver, @utm);
-        `);
-
-      const targetId = trg.recordset[0].Id as string;
-
+      // Update the existing target instead of creating a new one
       await pool.request()
-        .input('tid', SQL.UniqueIdentifier, targetId)
-        .input('qid', SQL.UniqueIdentifier, qrId)
-        .query('UPDATE dbo.[QR_Code] SET CurrentTargetId=@tid WHERE Id=@qid;');
+        .input('targetId', SQL.UniqueIdentifier, currentTargetId)
+        .input('url', SQL.NVarChar(2048), url)
+        .input('utm', SQL.NVarChar(SQL.MAX), utmData)
+        .query('UPDATE dbo.[QR_Target] SET Url=@url, UTM=@utm WHERE Id=@targetId');
 
       return reply.redirect(`/editQR.html?slug=${encodeURIComponent(slug)}&success=Target+updated`);
-    } catch (e: any) {
-      return reply.redirect(`/editQR.html?slug=${encodeURIComponent(slug)}&error=${encodeURIComponent(e.message || 'Failed to update')}`);
+    } catch (error) {
+      console.error('Target update failed:', error);
+      return reply.redirect(`/editQR.html?slug=${encodeURIComponent(slug)}&error=Update+failed`);
     }
   });
 
-  // ---------- Update design (colors/logo) ----------
+  // ---------- Update Design ----------
   app.post('/qr/:slug/design', async (req, reply) => {
     let user: AccessPayload;
-    try { user = getUserOrThrow(req); }
-    catch { return reply.redirect('/login.html?error=Please+log+in'); }
+    try {
+      user = getUserOrThrow(req);
+    } catch {
+      return reply.redirect('/login.html');
+    }
 
     const { slug } = req.params as any;
     const body = req.body as any;
 
-    // sanitize inputs; keep defaults if missing
     const fg = String(body.fg || '#0b3d91');
     const bg = String(body.bg || '#ffffff');
     const ec = String(body.ec || 'M').toUpperCase();
-    const format = String(body.format || 'svg').toLowerCase();
     const rawLogoUrl = String(body.logoUrl || '').trim();
+    
     // decode if client pre-encoded the data URL to survive x-www-form-urlencoded
     const decodedLogo = rawLogoUrl.startsWith('data:') ? rawLogoUrl : decodeURIComponent(rawLogoUrl);
     const logoUrl = decodedLogo && decodedLogo.length ? decodedLogo : null;
     const logoSizePct = Math.max(10, Math.min(40, Number(body.logoSizePct || 22)));
 
-    const design = JSON.stringify({ fg, bg, ec, format, logoUrl, logoSizePct });
+    const design = JSON.stringify({ fg, bg, ec, logoUrl, logoSizePct });
 
     const pool = await getPool();
     const r = await pool.request()
@@ -473,48 +406,208 @@ export default async function qrRoutes(app: FastifyInstance) {
   // ---------- Delete QR ----------
   app.post('/qr/:slug/delete', async (req, reply) => {
     let user: AccessPayload;
-    try { user = getUserOrThrow(req); }
-    catch { return reply.redirect('/login.html?error=Please+log+in'); }
+    try {
+      user = getUserOrThrow(req);
+    } catch {
+      return reply.redirect('/login.html');
+    }
 
     const { slug } = req.params as any;
 
+    try {
     const pool = await getPool();
     await pool.request()
+        .input('uid', SQL.UniqueIdentifier, user.sub)
       .input('slug', SQL.NVarChar(64), slug)
-      .input('uid', SQL.UniqueIdentifier, user.sub)
-      .query('DELETE FROM dbo.[QR_Code] WHERE Slug=@slug AND User_Id=@uid;');
+        .query('UPDATE dbo.[QR_Code] SET Archived=1 WHERE Slug=@slug AND User_Id=@uid');
 
-    return reply.redirect('/qr.html?success=QR+deleted');
+      return reply.redirect('/qr.html?success=QR+Code+deleted');
+    } catch (error) {
+      console.error('Delete failed:', error);
+      return reply.redirect('/qr.html?error=Delete+failed');
+    }
   });
 
-  // ---------- Get single QR details ----------
-  app.get('/api/qr/:slug', async (req, reply) => {
+  // ---------- Get User's QR Codes List ----------
+  app.get('/api/my/qr', async (req, reply) => {
     let user: AccessPayload;
-    try { user = getUserOrThrow(req); }
-    catch { return reply.code(401).send({ error: 'unauthorized' }); }
+    try {
+      user = getUserOrThrow(req);
+    } catch {
+      return reply.code(401).send('Unauthorized');
+    }
+
+    try {
+      const pool = await getPool();
+      console.log('Fetching QR codes for user:', user.sub);
+      
+      const r = await pool.request()
+      .input('uid', SQL.UniqueIdentifier, user.sub)
+        .query(`
+          SELECT c.Name, c.Slug, c.CreatedAt, c.Tags
+          FROM dbo.[QR_Code] c
+          WHERE c.User_Id = @uid AND c.Archived = 0
+          ORDER BY c.CreatedAt DESC
+        `);
+
+      console.log('QR codes found:', r.recordset.length);
+      return reply.send(r.recordset);
+    } catch (error) {
+      console.error('QR list fetch failed:', error);
+      return reply.code(500).send('Failed to fetch QR codes');
+    }
+  });
+
+  // ---------- Update QR Name/Slug ----------
+  app.post('/api/qr/:slug/update', async (req, reply) => {
+    let user: AccessPayload;
+    try {
+      user = getUserOrThrow(req);
+    } catch {
+      return reply.code(401).send('Unauthorized');
+    }
+
+    const { slug } = req.params as any;
+    const { name, slug: newSlug } = req.body as any;
+
+    try {
+      const pool = await getPool();
+
+      // Check if QR exists and belongs to user
+      const checkResult = await pool.request()
+        .input('slug', SQL.NVarChar, slug)
+        .input('uid', SQL.UniqueIdentifier, user.sub)
+        .query(`
+          SELECT Id FROM dbo.[QR_Code] 
+          WHERE Slug = @slug AND User_Id = @uid AND Archived = 0
+        `);
+
+      if (!checkResult.recordset.length) {
+        return reply.code(404).send('QR code not found');
+      }
+
+      // If updating slug, check if new slug is unique
+      if (newSlug && newSlug !== slug) {
+        const slugCheck = await pool.request()
+          .input('newSlug', SQL.NVarChar, newSlug)
+          .input('uid', SQL.UniqueIdentifier, user.sub)
+          .query(`
+            SELECT Id FROM dbo.[QR_Code] 
+            WHERE Slug = @newSlug AND User_Id = @uid AND Archived = 0
+          `);
+
+        if (slugCheck.recordset.length > 0) {
+          return reply.code(409).send('Slug already exists');
+        }
+      }
+
+      // Build update query
+      const updates: string[] = [];
+      const inputs: any = { 
+        uid: { type: SQL.UniqueIdentifier, value: user.sub }, 
+        originalSlug: { type: SQL.NVarChar, value: slug } 
+      };
+
+      if (name) {
+        updates.push('Name = @name');
+        inputs.name = { type: SQL.NVarChar, value: name };
+      }
+
+      if (newSlug) {
+        updates.push('Slug = @newSlug');
+        inputs.newSlug = { type: SQL.NVarChar, value: newSlug };
+      }
+
+      const body = req.body as any;
+      if (body.tags !== undefined) {
+        console.log('Raw tags from update:', body.tags);
+        const tags = Array.isArray(body.tags) ? body.tags : [];
+        console.log('Processed tags for update:', tags);
+        updates.push('Tags = @tags');
+        inputs.tags = { type: SQL.NVarChar(SQL.MAX), value: JSON.stringify(tags) };
+      }
+
+      if (updates.length === 0) {
+        return reply.code(400).send('No updates provided');
+      }
+
+      const updateQuery = `
+        UPDATE dbo.[QR_Code] 
+        SET ${updates.join(', ')}
+        WHERE Slug = @originalSlug AND User_Id = @uid AND Archived = 0
+      `;
+
+      const request = pool.request();
+      Object.keys(inputs).forEach(key => {
+        request.input(key, inputs[key].type, inputs[key].value);
+      });
+
+      await request.query(updateQuery);
+
+      return reply.send({ success: true });
+    } catch (error) {
+      console.error('QR update failed:', error);
+      return reply.code(500).send('Update failed');
+    }
+  });
+
+  // ---------- Get QR Data for Edit Page ----------
+  app.get('/qr/:slug/data', async (req, reply) => {
+    let user: AccessPayload;
+    try {
+      user = getUserOrThrow(req);
+    } catch {
+      return reply.code(401).send('Unauthorized');
+    }
 
     const { slug } = req.params as any;
 
+    try {
     const pool = await getPool();
     const r = await pool.request()
+        .input('slug', SQL.NVarChar(64), slug)
       .input('uid', SQL.UniqueIdentifier, user.sub)
-      .input('slug', SQL.NVarChar(64), slug)
       .query(`
-        SELECT q.Id, q.Name, q.Slug, t.Url AS CurrentUrl, q.CreatedAt
-        FROM dbo.[QR_Code] q
-        LEFT JOIN dbo.[QR_Target] t ON t.Id = q.CurrentTargetId
-        WHERE q.User_Id=@uid AND q.Slug=@slug
-      `);
+          SELECT TOP 1 c.Name, c.Slug, c.Design, c.Tags, t.Url, t.UTM
+          FROM dbo.[QR_Code] c
+          INNER JOIN dbo.[QR_Target] t ON c.CurrentTargetId = t.Id
+          WHERE c.Slug = @slug AND c.User_Id = @uid AND c.Archived = 0
+        `);
 
-    if (!r.recordset.length) return reply.code(404).send({ error: 'Not found' });
+      if (!r.recordset.length) {
+        return reply.code(404).send('Not found');
+      }
 
-    reply.send(r.recordset[0]);
+      const { Name, Slug, Design, Tags, Url, UTM } = r.recordset[0];
+      const design = JSON.parse(Design || '{}');
+      const utm = JSON.parse(UTM || '{}');
+
+      console.log('QR data from database:', {
+        Name,
+        Slug,
+        Tags,
+        TagsType: typeof Tags
+      });
+
+      return reply.send({
+        Name,
+        Slug,
+        Url,
+        Design: design,
+        Tags: Tags,
+        UTM: utm
+      });
+    } catch (error) {
+      console.error('Data fetch failed:', error);
+      return reply.code(500).send('Data fetch failed');
+    }
   });
 
   // ---------- Serve QR as SVG ----------
-  app.get('/qr/:slug.svg', async (req, reply) => {
+  app.get('/qr/:slug/svg', async (req, reply) => {
     const { slug } = req.params as any;
     const debug = (req.query as any)?.debug === '1';
+
     const pool = await getPool();
     const r = await pool.request()
       .input('slug', SQL.NVarChar(64), slug)
@@ -529,6 +622,7 @@ export default async function qrRoutes(app: FastifyInstance) {
 
     const content = `${PUBLIC_BASE_URL}/r/${slug}`;
 
+    try {
     let svg = await QRCode.toString(content, {
       type: 'svg',
       color: { dark: fg, light: bg },
@@ -536,122 +630,81 @@ export default async function qrRoutes(app: FastifyInstance) {
       margin: 2,
       width: 512
     });
+
     const href = design.logoUrl ? await resolveLogoHref(design.logoUrl) : '';
     if (href) svg = injectLogoIntoSvg(svg, href, Number(design.logoSizePct) || 22, debug, bg, fg);
 
-    reply.header('Content-Type', 'image/svg+xml').send(svg);
+      reply.header('Content-Type', 'image/svg+xml')
+          .header('Content-Disposition', `attachment; filename="${slug}.svg"`)
+          .send(svg);
+    } catch (error) {
+      console.error('SVG generation failed:', error);
+      return reply.code(500).send('SVG generation failed');
+    }
   });
 
-  // ---------- Redirect ----------
-  // app.get('/r/:slug', async (req, reply) => {
-  //   const { slug } = req.params as any;
-  //   const pool = await getPool();
-  //   const q = await pool.request()
-  //     .input('slug', SQL.NVarChar(64), slug)
-  //     .query(`
-  //       SELECT TOP 1 t.Url
-  //       FROM dbo.[QR_Code] q
-  //       JOIN dbo.[QR_Target] t ON t.Id = q.CurrentTargetId
-  //       WHERE q.Slug = @slug
-  //     `);
-  //   if (!q.recordset.length) return reply.code(404).send('Not found');
-  //   return reply.redirect(q.recordset[0].Url);
-  // });
+  // ---------- Redirect to target URL ----------
+  app.get('/r/:slug', async (req, reply) => {
+    const { slug } = req.params as any;
+    const userAgent = req.headers['user-agent'] || '';
+    const ip = req.ip || req.socket.remoteAddress || '';
 
-  //Zehua
-  // ---------- Redirect and log scan ----------
-  app.get<{ Querystring: { utm?: string } }>('/r/:slug', async (req, reply) => {
-  const { slug } = req.params as any;
   const pool = await getPool();
-
-  // Get QR code and current target WITH UTM data
-  const q = await pool.request()
+    const r = await pool.request()
     .input('slug', SQL.NVarChar(64), slug)
     .query(`
-      SELECT TOP 1 q.Id AS QR_Code_Id, t.Id AS Target_Id, t.Url, t.UTM
-      FROM dbo.[QR_Code] q
-      JOIN dbo.[QR_Target] t ON t.Id = q.CurrentTargetId
-      WHERE q.Slug = @slug
-    `);
-
-  if (!q.recordset.length) return reply.code(404).send('Not found');
-
-  const { QR_Code_Id, Target_Id, Url, UTM } = q.recordset[0];
-
-    // Gather scan info
-    const ip = (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim();
-    const uaRaw = req.headers['user-agent'] || '';
-    const agent = useragent.parse(uaRaw);
-    const geo = geoip.lookup(ip) || {};
-
-    // Enhanced prefetch/bot detection
-    const headers = req.headers;
-    const userAgent = uaRaw.toLowerCase();
+        SELECT TOP 1 t.Url, t.UTM, c.Name, c.Tags
+        FROM dbo.[QR_Code] c
+        INNER JOIN dbo.[QR_Target] t ON c.CurrentTargetId = t.Id
+        WHERE c.Slug = @slug AND c.Archived = 0
+      `);
     
-    const isPrefetch = !!(
-      headers['x-moz'] === 'prefetch' ||
-      headers['purpose'] === 'prefetch' ||
-      headers['x-purpose'] === 'preview' ||
-      headers['x-facebook-user-agent'] ||
-      userAgent.includes('facebookexternalhit') ||
-      userAgent.includes('twitterbot') ||
-      userAgent.includes('linkedinbot') ||
-      userAgent.includes('whatsapp') ||
-      userAgent.includes('telegrambot') ||
-      userAgent.includes('slackbot') ||
-      userAgent.includes('discordbot') ||
-      userAgent.includes('preview') ||
-      userAgent.includes('crawler') ||
-      userAgent.includes('bot')
-    );
-
-    // Only insert scan if it's NOT a prefetch/bot
-    if (!isPrefetch) {
-      // Insert scan asynchronously (don't block redirect)
-      pool.request()
-        .input('QR_Code_Id', SQL.UniqueIdentifier, QR_Code_Id)
-        .input('Target_Id', SQL.UniqueIdentifier, Target_Id)
-        .input('OccurredAt', SQL.DateTime2, new Date())
-        .input('IP', SQL.NVarChar(45), ip)
-        .input('Country', SQL.NVarChar(5), geo.country || null)
-        .input('Region', SQL.NVarChar(100), (() => {
-            let region = geo.region;
-            if (!region && geo.country === 'SG' && geo.ll) {
-              // Use precise Singapore regions if lat/lon available
-              region = getSingaporeRegion(geo.ll[0], geo.ll[1]);
-            } else if (!region) {
-              // Fallback for other city-states
-              region = geo.city || geo.country;
-            }
-            return region;
-          })())
-        .input('City', SQL.NVarChar(100), geo.city || null)
-        .input('Lat', SQL.Float, geo.ll ? geo.ll[0] : null)
-        .input('Lon', SQL.Float, geo.ll ? geo.ll[1] : null)
-        .input('UA_Raw', SQL.NVarChar(SQL.MAX), uaRaw)
-        .input('UA_Hints', SQL.NVarChar(SQL.MAX), JSON.stringify({
-          device: agent.device.toString(),
-          os: agent.os.toString(),
-          browser: agent.toAgent()
-        }))
-        .input('DeviceType', SQL.NVarChar(50), agent.device.toString())
-        .input('OS', SQL.NVarChar(50), agent.os.toString())
-        .input('Browser', SQL.NVarChar(50), agent.toAgent())
-        .input('Lang', SQL.NVarChar(SQL.MAX), req.headers['accept-language'] || null)
-        .input('Referer', SQL.NVarChar(SQL.MAX), req.headers['referer'] || null)
-        .input('UTM', SQL.NVarChar(SQL.MAX), UTM || null)
-        .input('Is_Prefetch', SQL.Bit, 0) // Real user scan
-        .query(`
-          INSERT INTO dbo.[QR_Scan]
-          (QR_Code_Id, Target_Id, OccurredAt, IP, Country, Region, City, Lat, Lon, UA_Raw, UA_Hints, DeviceType, OS, Browser, Lang, Referer, UTM, Is_Prefetch)
-          VALUES
-          (@QR_Code_Id, @Target_Id, @OccurredAt, @IP, @Country, @Region, @City, @Lat, @Lon, @UA_Raw, @UA_Hints, @DeviceType, @OS, @Browser, @Lang, @Referer, @UTM, @Is_Prefetch)
-        `).catch(console.error);
-    } else {
-      console.log('Skipping scan log - detected as prefetch/bot');
+    if (!r.recordset.length) {
+      return reply.code(404).send('QR Code not found');
     }
 
-    // Always redirect regardless (so link previews still work)
+    const { Url, UTM, Name } = r.recordset[0];
+    let finalUrl = Url;
+
+    // Parse UTM parameters if they exist
+    if (UTM) {
+      try {
+        const utmParams = JSON.parse(UTM);
+        const urlObj = new URL(Url);
+        
+        if (utmParams.utm_source) urlObj.searchParams.set('utm_source', utmParams.utm_source);
+        if (utmParams.utm_medium) urlObj.searchParams.set('utm_medium', utmParams.utm_medium);
+        if (utmParams.utm_campaign) urlObj.searchParams.set('utm_campaign', utmParams.utm_campaign);
+        
+        finalUrl = urlObj.toString();
+      } catch (error) {
+        console.error('UTM parsing failed:', error);
+      }
+    }
+
+    // Log the click
+    try {
+      const agent = useragent.parse(userAgent);
+      const geo = geoip.lookup(ip);
+      
+      await pool.request()
+        .input('slug', SQL.NVarChar(64), slug)
+        .input('ip', SQL.NVarChar(45), ip)
+        .input('userAgent', SQL.NVarChar(500), userAgent)
+        .input('browser', SQL.NVarChar(100), agent.family)
+        .input('os', SQL.NVarChar(100), agent.os.family)
+        .input('device', SQL.NVarChar(100), agent.device.family)
+        .input('country', SQL.NVarChar(100), geo?.country || 'Unknown')
+        .input('region', SQL.NVarChar(100), geo?.region || 'Unknown')
+        .input('city', SQL.NVarChar(100), geo?.city || 'Unknown')
+        .query(`
+          INSERT INTO dbo.[QR_Click] (QR_Code_Slug, IP, UserAgent, Browser, OS, Device, Country, Region, City, ClickedAt)
+          VALUES (@slug, @ip, @userAgent, @browser, @os, @device, @country, @region, @city, GETDATE())
+        `);
+    } catch (error) {
+      console.error('Click logging failed:', error);
+    }
+
     return reply.redirect(Url);
   });
 

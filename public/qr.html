@@ -32,12 +32,29 @@
 </header>
 
 <main class="list">
-  <h1>My QR Codes</h1>
-  <p class="sub">Click a slug to open its dynamic redirect URL, or edit to change the destination.</p>
+  <div class="list-header">
+    <div class="header-content">
+      <h1>My QR Codes</h1>
+      <p class="sub">Click a slug to open its dynamic redirect URL, or edit to change the destination.</p>
+    </div>
+    <div class="search-container">
+      <input type="text" id="searchInput" placeholder="Search QR codes by name..." class="search-input">
+      <div class="search-icon">🔍</div>
+    </div>
+    <div class="filter-container">
+      <select id="tagFilter" class="filter-select">
+        <option value="">All Tags</option>
+      </select>
+    </div>
+  </div>
 
   <div id="form-msg"></div>
 
-  <table id="tbl">
+  <div class="qr-grid" id="qrGrid">
+    <!-- QR cards will be inserted here -->
+  </div>
+
+  <table id="tbl" style="display: none;">
     <thead>
       <tr>
         <th>Preview</th>
@@ -74,38 +91,154 @@
     msgEl.textContent=params.get('success');
   }
 
-  // fetch and render table
+  // Global variable to store all QR codes
+  let allQRCodes = [];
+
+  // Search functionality
+  function filterQRCodes(searchTerm, tagFilter) {
+    const qrGrid = document.getElementById('qrGrid');
+    let filtered = allQRCodes.filter(qr => 
+      qr.Name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    // Apply tag filter
+    if (tagFilter) {
+      filtered = filtered.filter(qr => {
+        if (!qr.Tags) return false;
+        const tags = typeof qr.Tags === 'string' ? JSON.parse(qr.Tags) : qr.Tags;
+        return Array.isArray(tags) && tags.some(tag => tag.name === tagFilter);
+      });
+    }
+    
+    qrGrid.innerHTML = '';
+    
+    if (filtered.length === 0) {
+      qrGrid.innerHTML = `
+        <div class="no-results">
+          <div class="no-results-icon">🔍</div>
+          <h3>No QR codes found</h3>
+          <p>Try adjusting your search terms or <a href="/generateQR.html">create a new QR code</a></p>
+        </div>
+      `;
+      return;
+    }
+    
+    filtered.forEach(createQRCard);
+  }
+
+  // Create QR card element
+  function createQRCard(qr) {
+    const card = document.createElement('div');
+    card.className = 'qr-card';
+    card.innerHTML = `
+      <div class="qr-preview">
+        <img src="/qr/${encodeURIComponent(qr.Slug)}/svg" alt="QR Code">
+      </div>
+      <div class="qr-info">
+        <div class="qr-info-left">
+          <h3 class="qr-name">${qr.Name}</h3>
+          <p class="qr-slug">${qr.Slug}</p>
+          <p class="qr-date">Created ${new Date(qr.CreatedAt).toLocaleDateString()}</p>
+        </div>
+        <div class="qr-tags">
+          ${(() => {
+            const tags = qr.Tags ? (typeof qr.Tags === 'string' ? JSON.parse(qr.Tags) : qr.Tags) : [];
+            return tags && tags.length > 0 ? 
+              tags.map(tag => `<span class="tag" style="background-color: ${tag.color}; color: white;">${tag.name}</span>`).join('') :
+              '<span class="no-tags">No tags</span>';
+          })()}
+        </div>
+      </div>
+      <div class="qr-actions">
+        <a href="/r/${encodeURIComponent(qr.Slug)}" target="_blank" class="action-btn primary">
+          <span>🔗</span> Open
+        </a>
+        <a href="/editQR.html?slug=${encodeURIComponent(qr.Slug)}" class="action-btn secondary">
+          <span>✏️</span> Edit
+        </a>
+        <form method="post" action="/qr/${encodeURIComponent(qr.Slug)}/delete" onsubmit="return confirm('Delete this QR code?');" class="delete-form">
+          <button type="submit" class="action-btn danger">
+            <span>🗑️</span> Delete
+          </button>
+        </form>
+      </div>
+    `;
+    document.getElementById('qrGrid').appendChild(card);
+  }
+
+  // Search input event listener
+  document.getElementById('searchInput').addEventListener('input', (e) => {
+    filterQRCodes(e.target.value, document.getElementById('tagFilter').value);
+  });
+  
+  // Tag filter event listener
+  document.getElementById('tagFilter').addEventListener('change', (e) => {
+    filterQRCodes(document.getElementById('searchInput').value, e.target.value);
+  });
+
+  // fetch and render QR codes
   (async function(){
+    console.log('Starting QR list fetch...');
+    
     const me = await fetch('/api/me', { credentials:'include' });
+    console.log('Me response:', me.status);
     if (me.status===401) {
       location.href='/login.html?error=Session+expired';
       return;
     }
 
+    console.log('Fetching QR codes...');
     const r = await fetch('/api/my/qr', { credentials:'include' });
-    if (!r.ok) return;
-    const rows = await r.json();
-    const tb = document.querySelector('#tbl tbody');
-    tb.innerHTML = '';
-
-    for (const x of rows) {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><img src="/qr/${encodeURIComponent(x.Slug)}.svg" alt="qr"></td>
-        <td>${x.Name}</td>
-        <td>
-          <a class="link" href="/r/${encodeURIComponent(x.Slug)}" target="_blank">${x.Slug}</a>
-          &nbsp;•&nbsp;
-          <a class="link" href="/editQR.html?slug=${encodeURIComponent(x.Slug)}">Edit</a>
-          &nbsp;•&nbsp;
-          <form method="post" action="/qr/${encodeURIComponent(x.Slug)}/delete" style="display:inline;" onsubmit="return confirm('Delete this QR code?');">
-            <button type="submit" class="link danger">Delete</button>
-          </form>
-        </td>
-        <td>${new Date(x.CreatedAt).toLocaleString()}</td>
-      `;
-      tb.appendChild(tr);
+    console.log('QR response:', r.status, r.statusText);
+    
+    if (!r.ok) {
+      console.error('QR fetch failed:', r.status, r.statusText);
+      return;
     }
+    
+    const rows = await r.json();
+    console.log('QR codes received:', rows);
+    
+    allQRCodes = rows;
+    const qrGrid = document.getElementById('qrGrid');
+
+    if (rows.length === 0) {
+      qrGrid.innerHTML = `
+        <div class="no-results">
+          <div class="no-results-icon">📱</div>
+          <h3>No QR codes yet</h3>
+          <p>Create your first QR code to get started</p>
+          <a href="/generateQR.html" class="create-btn">Create QR Code</a>
+        </div>
+      `;
+      return;
+    }
+
+    // Populate tag filter
+    const tagFilter = document.getElementById('tagFilter');
+    const allTags = new Set();
+    rows.forEach(qr => {
+      if (qr.Tags) {
+        const tags = typeof qr.Tags === 'string' ? JSON.parse(qr.Tags) : qr.Tags;
+        if (Array.isArray(tags)) {
+          tags.forEach(tag => allTags.add(tag.name));
+        }
+      }
+    });
+    
+    // Clear existing options except "All Tags"
+    tagFilter.innerHTML = '<option value="">All Tags</option>';
+    
+    // Add tag options
+    Array.from(allTags).sort().forEach(tagName => {
+      const option = document.createElement('option');
+      option.value = tagName;
+      option.textContent = tagName;
+      tagFilter.appendChild(option);
+    });
+
+    // Create cards for all QR codes
+    rows.forEach(createQRCard);
   })();
 </script>
 </body>
