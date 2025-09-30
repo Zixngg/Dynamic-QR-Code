@@ -9,7 +9,7 @@
 </head>
 <body>
 <header class="header">
-  <a class="header__brand" href="/">Dynamic QR Code</a>
+  <a class="header__brand" href="/dashboard.html">Dynamic QR Code</a>
   <nav class="nav">
     <a href="/dashboard.html">Dashboard</a>
     <div class="QRCode-menu">
@@ -34,17 +34,26 @@
 <main class="list">
   <div class="list-header">
     <div class="header-content">
-      <h1>My QR Codes</h1>
-      <p class="sub">Click a slug to open its dynamic redirect URL, or edit to change the destination.</p>
+  <h1>My QR Codes</h1>
+      <p class="sub">Click a link to open its dynamic redirect URL, or edit to change the destination.</p>
     </div>
     <div class="search-container">
       <input type="text" id="searchInput" placeholder="Search QR codes by name..." class="search-input">
       <div class="search-icon">🔍</div>
     </div>
     <div class="filter-container">
-      <select id="tagFilter" class="filter-select">
-        <option value="">All Tags</option>
-      </select>
+      <div class="multi-select-wrapper">
+        <div class="multi-select-header" id="tagFilterHeader">
+          <span id="tagFilterText">All Tags</span>
+          <span class="dropdown-arrow">▼</span>
+        </div>
+        <div class="multi-select-options" id="tagFilterOptions" style="display: none;">
+          <div class="option-item">
+            <input type="checkbox" id="allTags" checked>
+            <label for="allTags">All Tags</label>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -52,6 +61,15 @@
 
   <div class="qr-grid" id="qrGrid">
     <!-- QR cards will be inserted here -->
+  </div>
+
+  <!-- Pagination -->
+  <div class="pagination" id="pagination" style="display: none;">
+    <button id="prevBtn" class="pagination-btn" disabled>‹</button>
+    <div class="pagination-pages" id="paginationPages">
+      <!-- Page numbers will be inserted here -->
+    </div>
+    <button id="nextBtn" class="pagination-btn" disabled>›</button>
   </div>
 
   <table id="tbl" style="display: none;">
@@ -91,28 +109,99 @@
     msgEl.textContent=params.get('success');
   }
 
-  // Global variable to store all QR codes
+  // Global variables
   let allQRCodes = [];
+  let currentPage = 1;
+  const itemsPerPage = 6;
+  let filteredQRCodes = [];
+  let selectedTags = new Set(); // Track selected tags
 
-  // Search functionality
-  function filterQRCodes(searchTerm, tagFilter) {
-    const qrGrid = document.getElementById('qrGrid');
-    let filtered = allQRCodes.filter(qr => 
-      qr.Name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    
-    // Apply tag filter
-    if (tagFilter) {
-      filtered = filtered.filter(qr => {
-        if (!qr.Tags) return false;
-        const tags = typeof qr.Tags === 'string' ? JSON.parse(qr.Tags) : qr.Tags;
-        return Array.isArray(tags) && tags.some(tag => tag.name === tagFilter);
-      });
+  // Pagination functionality
+  function updatePagination() {
+    const totalPages = Math.ceil(filteredQRCodes.length / itemsPerPage);
+    const pagination = document.getElementById('pagination');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const paginationPages = document.getElementById('paginationPages');
+
+    if (totalPages <= 1) {
+      pagination.style.display = 'none';
+      return;
     }
+
+    pagination.style.display = 'flex';
     
+    prevBtn.disabled = currentPage === 1;
+    nextBtn.disabled = currentPage === totalPages;
+    
+    // Generate page numbers
+    generatePageNumbers(totalPages, paginationPages);
+  }
+
+  function generatePageNumbers(totalPages, container) {
+    container.innerHTML = '';
+    
+    if (totalPages <= 7) {
+      // Show all pages if 7 or fewer
+      for (let i = 1; i <= totalPages; i++) {
+        createPageButton(i, container);
+      }
+    } else {
+      // Show smart pagination with ellipsis
+      if (currentPage <= 4) {
+        // Show first 5 pages + ellipsis + last page
+        for (let i = 1; i <= 5; i++) {
+          createPageButton(i, container);
+        }
+        createEllipsis(container);
+        createPageButton(totalPages, container);
+      } else if (currentPage >= totalPages - 3) {
+        // Show first page + ellipsis + last 5 pages
+        createPageButton(1, container);
+        createEllipsis(container);
+        for (let i = totalPages - 4; i <= totalPages; i++) {
+          createPageButton(i, container);
+        }
+      } else {
+        // Show first page + ellipsis + current-1, current, current+1 + ellipsis + last page
+        createPageButton(1, container);
+        createEllipsis(container);
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          createPageButton(i, container);
+        }
+        createEllipsis(container);
+        createPageButton(totalPages, container);
+      }
+    }
+  }
+
+  function createPageButton(pageNum, container) {
+    const button = document.createElement('button');
+    button.className = `pagination-btn page-btn ${pageNum === currentPage ? 'active' : ''}`;
+    button.textContent = pageNum;
+    button.onclick = () => {
+      currentPage = pageNum;
+      renderCurrentPage();
+    };
+    container.appendChild(button);
+  }
+
+  function createEllipsis(container) {
+    const ellipsis = document.createElement('span');
+    ellipsis.className = 'pagination-ellipsis';
+    ellipsis.textContent = '...';
+    container.appendChild(ellipsis);
+  }
+
+  function renderCurrentPage() {
+    const qrGrid = document.getElementById('qrGrid');
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const pageQRCodes = filteredQRCodes.slice(startIndex, endIndex);
+
     qrGrid.innerHTML = '';
-    
-    if (filtered.length === 0) {
+
+    if (pageQRCodes.length === 0) {
       qrGrid.innerHTML = `
         <div class="no-results">
           <div class="no-results-icon">🔍</div>
@@ -122,8 +211,32 @@
       `;
       return;
     }
+
+    pageQRCodes.forEach(createQRCard);
+    updatePagination();
+  }
+
+  // Search functionality
+  function filterQRCodes(searchTerm, selectedTagsSet) {
+    filteredQRCodes = allQRCodes.filter(qr => 
+      qr.Name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
     
-    filtered.forEach(createQRCard);
+    // Apply tag filter
+    if (selectedTagsSet && selectedTagsSet.size > 0) {
+      filteredQRCodes = filteredQRCodes.filter(qr => {
+        if (!qr.Tags) return false;
+        const tags = typeof qr.Tags === 'string' ? JSON.parse(qr.Tags) : qr.Tags;
+        if (!Array.isArray(tags)) return false;
+        
+        // Check if QR code has any of the selected tags
+        return tags.some(tag => selectedTagsSet.has(tag.name));
+      });
+    }
+    
+    // Reset to first page when filtering
+    currentPage = 1;
+    renderCurrentPage();
   }
 
   // Create QR card element
@@ -139,6 +252,7 @@
           <h3 class="qr-name">${qr.Name}</h3>
           <p class="qr-slug">${qr.Slug}</p>
           <p class="qr-date">Created ${new Date(qr.CreatedAt).toLocaleDateString()}</p>
+          <p class="qr-scans">📊 ${qr.ScanCount || 0} scans</p>
         </div>
         <div class="qr-tags">
           ${(() => {
@@ -166,14 +280,89 @@
     document.getElementById('qrGrid').appendChild(card);
   }
 
+  // Multi-select functionality
+  function toggleTagFilter() {
+    const options = document.getElementById('tagFilterOptions');
+    const arrow = document.querySelector('.dropdown-arrow');
+    
+    if (options.style.display === 'none') {
+      options.style.display = 'block';
+      arrow.textContent = '▲';
+    } else {
+      options.style.display = 'none';
+      arrow.textContent = '▼';
+    }
+  }
+
+  function updateTagFilterText() {
+    const text = document.getElementById('tagFilterText');
+    if (selectedTags.size === 0) {
+      text.textContent = 'All Tags';
+    } else if (selectedTags.size === 1) {
+      text.textContent = Array.from(selectedTags)[0];
+    } else {
+      text.textContent = `${selectedTags.size} tags selected`;
+    }
+  }
+
+  function handleTagSelection(tagName, isChecked) {
+    if (tagName === 'allTags') {
+      if (isChecked) {
+        selectedTags.clear();
+        // Uncheck all other checkboxes
+        document.querySelectorAll('.option-item input[type="checkbox"]:not(#allTags)').forEach(cb => {
+          cb.checked = false;
+        });
+      }
+    } else {
+      if (isChecked) {
+        selectedTags.add(tagName);
+        // Uncheck "All Tags" if a specific tag is selected
+        document.getElementById('allTags').checked = false;
+      } else {
+        selectedTags.delete(tagName);
+        // Check "All Tags" if no specific tags are selected
+        if (selectedTags.size === 0) {
+          document.getElementById('allTags').checked = true;
+        }
+      }
+    }
+    
+    updateTagFilterText();
+    filterQRCodes(document.getElementById('searchInput').value, selectedTags);
+  }
+
   // Search input event listener
   document.getElementById('searchInput').addEventListener('input', (e) => {
-    filterQRCodes(e.target.value, document.getElementById('tagFilter').value);
+    filterQRCodes(e.target.value, selectedTags);
   });
   
-  // Tag filter event listener
-  document.getElementById('tagFilter').addEventListener('change', (e) => {
-    filterQRCodes(document.getElementById('searchInput').value, e.target.value);
+  // Multi-select event listeners
+  document.getElementById('tagFilterHeader').addEventListener('click', toggleTagFilter);
+  
+  // Close dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    const wrapper = document.querySelector('.multi-select-wrapper');
+    if (!wrapper.contains(e.target)) {
+      document.getElementById('tagFilterOptions').style.display = 'none';
+      document.querySelector('.dropdown-arrow').textContent = '▼';
+    }
+  });
+
+  // Pagination button event listeners
+  document.getElementById('prevBtn').addEventListener('click', () => {
+    if (currentPage > 1) {
+      currentPage--;
+      renderCurrentPage();
+    }
+  });
+
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    const totalPages = Math.ceil(filteredQRCodes.length / itemsPerPage);
+    if (currentPage < totalPages) {
+      currentPage++;
+      renderCurrentPage();
+    }
   });
 
   // fetch and render QR codes
@@ -199,11 +388,27 @@
     const rows = await r.json();
     console.log('QR codes received:', rows);
     
-    allQRCodes = rows;
-    const qrGrid = document.getElementById('qrGrid');
+    // Fetch scan counts
+    console.log('Fetching scan counts...');
+    const scanResponse = await fetch('/api/my/qr/scans', { credentials:'include' });
+    let scanCounts = {};
+    if (scanResponse.ok) {
+      scanCounts = await scanResponse.json();
+      console.log('Scan counts received:', scanCounts);
+    } else {
+      console.warn('Failed to fetch scan counts:', scanResponse.status);
+    }
+    
+    // Merge scan counts with QR data
+    const rowsWithScans = rows.map(qr => ({
+      ...qr,
+      ScanCount: scanCounts[qr.Slug] || 0
+    }));
+    
+    allQRCodes = rowsWithScans;
 
     if (rows.length === 0) {
-      qrGrid.innerHTML = `
+      document.getElementById('qrGrid').innerHTML = `
         <div class="no-results">
           <div class="no-results-icon">📱</div>
           <h3>No QR codes yet</h3>
@@ -215,7 +420,7 @@
     }
 
     // Populate tag filter
-    const tagFilter = document.getElementById('tagFilter');
+    const tagFilterOptions = document.getElementById('tagFilterOptions');
     const allTags = new Set();
     rows.forEach(qr => {
       if (qr.Tags) {
@@ -227,18 +432,28 @@
     });
     
     // Clear existing options except "All Tags"
-    tagFilter.innerHTML = '<option value="">All Tags</option>';
+    tagFilterOptions.innerHTML = `
+      <div class="option-item">
+        <input type="checkbox" id="allTags" checked onchange="handleTagSelection('allTags', this.checked)">
+        <label for="allTags">All Tags</label>
+      </div>
+    `;
     
     // Add tag options
     Array.from(allTags).sort().forEach(tagName => {
-      const option = document.createElement('option');
-      option.value = tagName;
-      option.textContent = tagName;
-      tagFilter.appendChild(option);
+      const optionItem = document.createElement('div');
+      optionItem.className = 'option-item';
+      optionItem.innerHTML = `
+        <input type="checkbox" id="tag_${tagName.replace(/\s+/g, '_')}" onchange="handleTagSelection('${tagName}', this.checked)">
+        <label for="tag_${tagName.replace(/\s+/g, '_')}">${tagName}</label>
+      `;
+      tagFilterOptions.appendChild(optionItem);
     });
 
-    // Create cards for all QR codes
-    rows.forEach(createQRCard);
+    // Initialize filtered list and render first page
+    filteredQRCodes = [...allQRCodes];
+    currentPage = 1;
+    renderCurrentPage();
   })();
 </script>
 </body>
