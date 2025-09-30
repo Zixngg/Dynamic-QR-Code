@@ -9,7 +9,7 @@
 </head>
 <body>
 <header class="header">
-  <a class="header__brand" href="/">Dynamic QR Code</a>
+  <a class="header__brand" href="/dashboard.html">Dynamic QR Code</a>
   <nav class="nav">
     <a href="/dashboard.html">Dashboard</a>
     <div class="QRCode-menu">
@@ -35,7 +35,7 @@
   <div class="list-header">
     <div class="header-content">
       <h1>My QR Codes</h1>
-      <p class="sub">Click a slug to open its dynamic redirect URL, or edit to change the destination.</p>
+      <p class="sub">Click a link to open its dynamic redirect URL, or edit to change the destination.</p>
     </div>
     <div class="search-container">
       <input type="text" id="searchInput" placeholder="Search QR codes by name..." class="search-input">
@@ -52,6 +52,15 @@
 
   <div class="qr-grid" id="qrGrid">
     <!-- QR cards will be inserted here -->
+  </div>
+
+  <!-- Pagination -->
+  <div class="pagination" id="pagination" style="display: none;">
+    <button id="prevBtn" class="pagination-btn" disabled>‹</button>
+    <div class="pagination-pages" id="paginationPages">
+      <!-- Page numbers will be inserted here -->
+    </div>
+    <button id="nextBtn" class="pagination-btn" disabled>›</button>
   </div>
 
   <table id="tbl" style="display: none;">
@@ -91,28 +100,98 @@
     msgEl.textContent=params.get('success');
   }
 
-  // Global variable to store all QR codes
+  // Global variables
   let allQRCodes = [];
+  let currentPage = 1;
+  const itemsPerPage = 6;
+  let filteredQRCodes = [];
 
-  // Search functionality
-  function filterQRCodes(searchTerm, tagFilter) {
-    const qrGrid = document.getElementById('qrGrid');
-    let filtered = allQRCodes.filter(qr => 
-      qr.Name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    
-    // Apply tag filter
-    if (tagFilter) {
-      filtered = filtered.filter(qr => {
-        if (!qr.Tags) return false;
-        const tags = typeof qr.Tags === 'string' ? JSON.parse(qr.Tags) : qr.Tags;
-        return Array.isArray(tags) && tags.some(tag => tag.name === tagFilter);
-      });
+  // Pagination functionality
+  function updatePagination() {
+    const totalPages = Math.ceil(filteredQRCodes.length / itemsPerPage);
+    const pagination = document.getElementById('pagination');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const paginationPages = document.getElementById('paginationPages');
+
+    if (totalPages <= 1) {
+      pagination.style.display = 'none';
+      return;
     }
+
+    pagination.style.display = 'flex';
     
+    prevBtn.disabled = currentPage === 1;
+    nextBtn.disabled = currentPage === totalPages;
+    
+    // Generate page numbers
+    generatePageNumbers(totalPages, paginationPages);
+  }
+
+  function generatePageNumbers(totalPages, container) {
+    container.innerHTML = '';
+    
+    if (totalPages <= 7) {
+      // Show all pages if 7 or fewer
+      for (let i = 1; i <= totalPages; i++) {
+        createPageButton(i, container);
+      }
+    } else {
+      // Show smart pagination with ellipsis
+      if (currentPage <= 4) {
+        // Show first 5 pages + ellipsis + last page
+        for (let i = 1; i <= 5; i++) {
+          createPageButton(i, container);
+        }
+        createEllipsis(container);
+        createPageButton(totalPages, container);
+      } else if (currentPage >= totalPages - 3) {
+        // Show first page + ellipsis + last 5 pages
+        createPageButton(1, container);
+        createEllipsis(container);
+        for (let i = totalPages - 4; i <= totalPages; i++) {
+          createPageButton(i, container);
+        }
+      } else {
+        // Show first page + ellipsis + current-1, current, current+1 + ellipsis + last page
+        createPageButton(1, container);
+        createEllipsis(container);
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          createPageButton(i, container);
+        }
+        createEllipsis(container);
+        createPageButton(totalPages, container);
+      }
+    }
+  }
+
+  function createPageButton(pageNum, container) {
+    const button = document.createElement('button');
+    button.className = `pagination-btn page-btn ${pageNum === currentPage ? 'active' : ''}`;
+    button.textContent = pageNum;
+    button.onclick = () => {
+      currentPage = pageNum;
+      renderCurrentPage();
+    };
+    container.appendChild(button);
+  }
+
+  function createEllipsis(container) {
+    const ellipsis = document.createElement('span');
+    ellipsis.className = 'pagination-ellipsis';
+    ellipsis.textContent = '...';
+    container.appendChild(ellipsis);
+  }
+
+  function renderCurrentPage() {
+    const qrGrid = document.getElementById('qrGrid');
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const pageQRCodes = filteredQRCodes.slice(startIndex, endIndex);
+
     qrGrid.innerHTML = '';
-    
-    if (filtered.length === 0) {
+
+    if (pageQRCodes.length === 0) {
       qrGrid.innerHTML = `
         <div class="no-results">
           <div class="no-results-icon">🔍</div>
@@ -122,8 +201,29 @@
       `;
       return;
     }
+
+    pageQRCodes.forEach(createQRCard);
+    updatePagination();
+  }
+
+  // Search functionality
+  function filterQRCodes(searchTerm, tagFilter) {
+    filteredQRCodes = allQRCodes.filter(qr => 
+      qr.Name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
     
-    filtered.forEach(createQRCard);
+    // Apply tag filter
+    if (tagFilter) {
+      filteredQRCodes = filteredQRCodes.filter(qr => {
+        if (!qr.Tags) return false;
+        const tags = typeof qr.Tags === 'string' ? JSON.parse(qr.Tags) : qr.Tags;
+        return Array.isArray(tags) && tags.some(tag => tag.name === tagFilter);
+      });
+    }
+    
+    // Reset to first page when filtering
+    currentPage = 1;
+    renderCurrentPage();
   }
 
   // Create QR card element
@@ -176,6 +276,22 @@
     filterQRCodes(document.getElementById('searchInput').value, e.target.value);
   });
 
+  // Pagination button event listeners
+  document.getElementById('prevBtn').addEventListener('click', () => {
+    if (currentPage > 1) {
+      currentPage--;
+      renderCurrentPage();
+    }
+  });
+
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    const totalPages = Math.ceil(filteredQRCodes.length / itemsPerPage);
+    if (currentPage < totalPages) {
+      currentPage++;
+      renderCurrentPage();
+    }
+  });
+
   // fetch and render QR codes
   (async function(){
     console.log('Starting QR list fetch...');
@@ -200,10 +316,9 @@
     console.log('QR codes received:', rows);
     
     allQRCodes = rows;
-    const qrGrid = document.getElementById('qrGrid');
 
     if (rows.length === 0) {
-      qrGrid.innerHTML = `
+      document.getElementById('qrGrid').innerHTML = `
         <div class="no-results">
           <div class="no-results-icon">📱</div>
           <h3>No QR codes yet</h3>
@@ -237,8 +352,10 @@
       tagFilter.appendChild(option);
     });
 
-    // Create cards for all QR codes
-    rows.forEach(createQRCard);
+    // Initialize filtered list and render first page
+    filteredQRCodes = [...allQRCodes];
+    currentPage = 1;
+    renderCurrentPage();
   })();
 </script>
 </body>

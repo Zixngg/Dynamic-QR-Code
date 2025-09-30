@@ -12,24 +12,11 @@
 </head>
 <body>
 <header class="header">
-  <a class="header__brand" href="/dashboard.html">Dynamic QR Code</a>
-  <nav class="nav">
-    <a href="/dashboard.html">Dashboard</a>
-    <div class="QRCode-menu">
-      <button type="button" onclick="toggleQRCodeMenu()">QR Code ▾</button>
-      <div class="QRCode-dropdown" id="QRCodeDropdown">
-        <a href="/generateQR.html">Generate QR Codes</a>
-        <a href="/qr.html">My QR Codes</a>
-      </div>
-    </div>
-    <div class="profile-menu">
-      <button type="button" onclick="toggleProfileMenu()">Profile ▾</button>
-      <div class="profile-dropdown" id="profileDropdown">
-        <a href="./profile.html">View Profile</a>
-        <form action="/auth/logout" method="post"><button type="submit">Logout</button></form>
-      </div>
-    </div>
-  </nav>
+  <div class="header-back">
+    <a href="/qr.html" class="back-btn">
+      <span>←</span> Back to QR Codes
+    </a>
+  </div>
 </header>
 
 <main class="container">
@@ -274,17 +261,6 @@
 </main>
 
 <script>
-  // dropdowns
-  function toggleProfileMenu(){ const dd=document.getElementById('profileDropdown'); dd.style.display=dd.style.display==='block'?'none':'block'; }
-  function toggleQRCodeMenu(){ const dd=document.getElementById('QRCodeDropdown'); dd.style.display=dd.style.display==='block'?'none':'block'; }
-  document.addEventListener('click', (e) => {
-    ['profile','QRCode'].forEach(k=>{
-      const menu=document.getElementById(k+'Dropdown');
-      const btn=document.querySelector('.'+k+'-menu button');
-      if(menu && btn && !menu.contains(e.target) && !btn.contains(e.target)) menu.style.display='none';
-    });
-  });
-
   // messages
   const params = new URLSearchParams(location.search);
   const msgEl = document.getElementById('form-msg');
@@ -702,6 +678,12 @@
   function editField(fieldType) {
     const fieldElement = document.getElementById(`qr${fieldType.charAt(0).toUpperCase() + fieldType.slice(1)}`);
     
+    // Prevent multiple edit sessions
+    if (fieldElement.parentElement.querySelector('.inline-tag-editor') || 
+        fieldElement.parentElement.querySelector('.edit-input')) {
+      return; // Already in edit mode
+    }
+    
     if (fieldType === 'tags') {
       // Parse existing tags
       let currentTags = [];
@@ -880,15 +862,17 @@
           msgEl.className = 'success';
           msgEl.textContent = 'Tags updated successfully';
           
-          // Clean up
+          // Clean up all dynamically created elements
           const container = fieldElement.parentElement.querySelector('.inline-tag-editor');
           const actionsContainer = fieldElement.parentElement.querySelector('.edit-actions');
           
           if (container) container.remove();
           if (actionsContainer) actionsContainer.remove();
           
+          // Restore original display
           fieldElement.style.display = 'inline-block';
-          fieldElement.parentElement.querySelector('.edit-btn').style.display = 'inline-block';
+          const editBtn = fieldElement.parentElement.querySelector('.edit-btn');
+          if (editBtn) editBtn.style.display = 'inline-block';
         } else {
           const errorText = await response.text();
           msgEl.className = 'error';
@@ -976,24 +960,25 @@
   // Cancel field edit
   function cancelFieldEdit(fieldElement, originalValue) {
     if (Array.isArray(originalValue)) {
-      // Handle tag cancellation
+      // Handle tag cancellation - clean up all dynamically created elements
       const container = fieldElement.parentElement.querySelector('.inline-tag-editor');
-      const saveBtn = fieldElement.parentElement.querySelector('.save-btn');
-      const cancelBtn = fieldElement.parentElement.querySelector('.cancel-btn');
+      const actionsContainer = fieldElement.parentElement.querySelector('.edit-actions');
       
+      // Remove all dynamically created elements
       if (container) container.remove();
-      if (saveBtn) saveBtn.remove();
-      if (cancelBtn) cancelBtn.remove();
+      if (actionsContainer) actionsContainer.remove();
       
+      // Restore original display
       fieldElement.style.display = 'inline-block';
-      fieldElement.parentElement.querySelector('.edit-btn').style.display = 'inline-block';
+      const editBtn = fieldElement.parentElement.querySelector('.edit-btn');
+      if (editBtn) editBtn.style.display = 'inline-block';
     } else {
       // Handle regular field cancellation
       fieldElement.style.display = '';
       fieldElement.textContent = originalValue;
       
       const editBtn = fieldElement.parentElement.querySelector('.edit-btn');
-      editBtn.style.display = '';
+      if (editBtn) editBtn.style.display = '';
       
       // Remove input and buttons
       fieldElement.parentElement.querySelectorAll('.edit-input, .edit-actions').forEach(el => el.remove());

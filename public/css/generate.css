@@ -1,3 +1,33 @@
+/* Back button header for edit pages */
+.header-back {
+  display: flex;
+  align-items: center;
+}
+
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #556bb4;
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+  background: #0a4a7a;
+  transform: translateY(-1px);
+}
+
+.back-btn span {
+  font-size: 16px;
+  font-weight: bold;
+}
+
 .wide { width:100%; max-width: 1200px; }
 .grid {
   display: grid;
