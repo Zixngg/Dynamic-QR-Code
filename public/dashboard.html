@@ -5,6 +5,10 @@
   <title>Dashboard • Dynamic QR Code</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/header.css">
+
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 </head>
 <script>
   function toggleProfileMenu() {
@@ -73,26 +77,6 @@
     <div class="toolbar">
     <div id="greeting" style="font-weight:600;"></div>
 
-    <!-- <div class="date-filter-section">
-      <div class="section-header">
-        <h3 class="section-title">Scan History Filter</h3>
-      </div>
-
-      <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
-        <div class="date-input-container">
-          <input type="date" id="dateFrom" class="date-input">
-        </div>
-
-        <div class="date-input-container">
-          <input type="date" id="dateTo" class="date-input">
-        </div>
-
-        <button id="applyDateFilter" class="btn" style="width:auto; padding: 0.75rem 1.5rem;">
-          Apply
-        </button>
-      </div>
-    </div> -->
-
     <div class="date-filter-section">
       <div class="section-header">
         <h3 class="section-title">Scan History Filter</h3>
@@ -110,8 +94,8 @@
         </div>
 
         <!-- QR Code Dropdown -->
-        <div class="date-input-container">
-          <select id="qrCodeSelect" class="date-input">
+        <div class="date-input-container" style="min-width: 250px;">
+          <select id="qrCodeSelect" class="date-input" style="width: 100%;">
             <option value="all">All QR Codes</option>
           </select>
         </div>
@@ -166,6 +150,12 @@
 
       // Make sure default selection is "all"
       qrSelect.value = 'all';
+
+      $('#qrCodeSelect').select2({
+        placeholder: 'Search QR Codes',
+        allowClear: true,
+        width: '100%'
+      });
     }
 
       // Fetch first scan date to set as default "from" date
