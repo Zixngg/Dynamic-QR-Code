@@ -552,18 +552,18 @@ export default async function qrRoutes(app: FastifyInstance) {
     }
 
     const { slug } = req.params as any;
-    const pool = await getPool();
+  const pool = await getPool();
     
     const r = await pool.request()
       .input('uid', SQL.UniqueIdentifier, user.sub)
-      .input('slug', SQL.NVarChar(64), slug)
-      .query(`
+    .input('slug', SQL.NVarChar(64), slug)
+    .query(`
         SELECT q.Id, q.Name, q.Slug, q.Design, q.Tags, t.Url, t.UTM
         FROM dbo.[QR_Code] q
         LEFT JOIN dbo.[QR_Target] t ON t.Id = q.CurrentTargetId
         WHERE q.User_Id = @uid AND q.Slug = @slug AND q.Archived = 0
       `);
-
+    
     if (!r.recordset.length) {
       return reply.code(404).send('QR Code not found');
     }
@@ -576,7 +576,7 @@ export default async function qrRoutes(app: FastifyInstance) {
     
     try {
       design = qrData.Design ? JSON.parse(qrData.Design) : {};
-    } catch (error) {
+      } catch (error) {
       console.error('Error parsing design:', error);
     }
     
@@ -622,7 +622,7 @@ export default async function qrRoutes(app: FastifyInstance) {
   // Get QR code and current target WITH UTM data
   const q = await pool.request()
     .input('slug', SQL.NVarChar(64), slug)
-    .query(`
+        .query(`
       SELECT TOP 1 q.Id AS QR_Code_Id, t.Id AS Target_Id, t.Url, t.UTM
       FROM dbo.[QR_Code] q
       JOIN dbo.[QR_Target] t ON t.Id = q.CurrentTargetId

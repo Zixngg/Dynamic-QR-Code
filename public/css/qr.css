@@ -19,6 +19,21 @@
   flex: 1;
 }
 
+.pagination-size-container {
+  margin-top: 16px;
+}
+
+.pagination-size-container .multi-select-wrapper {
+  min-width: 50px;
+  max-width: 70px;
+}
+
+.pagination-size-container .multi-select-header {
+  padding: 8px 10px;
+  font-size: 13px;
+  text-align: center;
+}
+
 .search-container {
   position: relative;
   min-width: 300px;
@@ -94,7 +109,8 @@
   background-color: #f8f9fa;
 }
 
-.option-item input[type="checkbox"] {
+.option-item input[type="checkbox"],
+.option-item input[type="radio"] {
   margin: 0;
   cursor: pointer;
 }

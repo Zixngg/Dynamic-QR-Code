@@ -34,8 +34,30 @@
 <main class="list">
   <div class="list-header">
     <div class="header-content">
-  <h1>My QR Codes</h1>
+      <h1>My QR Codes</h1>
       <p class="sub">Click a link to open its dynamic redirect URL, or edit to change the destination.</p>
+      <div class="pagination-size-container">
+        <div class="multi-select-wrapper">
+          <div class="multi-select-header" id="paginationSizeHeader">
+            <span id="paginationSizeText">6</span>
+            <span class="dropdown-arrow">▼</span>
+          </div>
+          <div class="multi-select-options" id="paginationSizeOptions" style="display: none;">
+            <div class="option-item">
+              <input type="radio" id="size6" name="paginationSize" value="6" checked>
+              <label for="size6">6</label>
+            </div>
+            <div class="option-item">
+              <input type="radio" id="size12" name="paginationSize" value="12">
+              <label for="size12">12</label>
+            </div>
+            <div class="option-item">
+              <input type="radio" id="size18" name="paginationSize" value="18">
+              <label for="size18">18</label>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="search-container">
       <input type="text" id="searchInput" placeholder="Search QR codes by name..." class="search-input">
@@ -112,7 +134,7 @@
   // Global variables
   let allQRCodes = [];
   let currentPage = 1;
-  const itemsPerPage = 6;
+  let itemsPerPage = 6;
   let filteredQRCodes = [];
   let selectedTags = new Set(); // Track selected tags
 
@@ -285,7 +307,7 @@
   // Multi-select functionality
   function toggleTagFilter() {
     const options = document.getElementById('tagFilterOptions');
-    const arrow = document.querySelector('.dropdown-arrow');
+    const arrow = document.querySelector('#tagFilterHeader .dropdown-arrow');
     
     if (options.style.display === 'none') {
       options.style.display = 'block';
@@ -294,6 +316,37 @@
       options.style.display = 'none';
       arrow.textContent = '▼';
     }
+  }
+
+  function togglePaginationSizeFilter() {
+    const options = document.getElementById('paginationSizeOptions');
+    const arrow = document.querySelector('#paginationSizeHeader .dropdown-arrow');
+    
+    if (options.style.display === 'none') {
+      options.style.display = 'block';
+      arrow.textContent = '▲';
+    } else {
+      options.style.display = 'none';
+      arrow.textContent = '▼';
+    }
+  }
+
+  function updatePaginationSizeText() {
+    const text = document.getElementById('paginationSizeText');
+    text.textContent = `${itemsPerPage}`;
+  }
+
+  function handlePaginationSizeChange(newSize) {
+    itemsPerPage = parseInt(newSize);
+    updatePaginationSizeText();
+    
+    // Close the dropdown
+    document.getElementById('paginationSizeOptions').style.display = 'none';
+    document.querySelector('#paginationSizeHeader .dropdown-arrow').textContent = '▼';
+    
+    // Reset to first page and re-render
+    currentPage = 1;
+    renderCurrentPage();
   }
 
   function updateTagFilterText() {
@@ -341,13 +394,30 @@
   
   // Multi-select event listeners
   document.getElementById('tagFilterHeader').addEventListener('click', toggleTagFilter);
+  document.getElementById('paginationSizeHeader').addEventListener('click', togglePaginationSizeFilter);
+  
+  // Pagination size radio button event listeners
+  document.querySelectorAll('input[name="paginationSize"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        handlePaginationSizeChange(e.target.value);
+      }
+    });
+  });
   
   // Close dropdown when clicking outside
   document.addEventListener('click', (e) => {
-    const wrapper = document.querySelector('.multi-select-wrapper');
-    if (!wrapper.contains(e.target)) {
+    const tagWrapper = document.querySelector('#tagFilterHeader').closest('.multi-select-wrapper');
+    const paginationWrapper = document.querySelector('#paginationSizeHeader').closest('.multi-select-wrapper');
+    
+    if (!tagWrapper.contains(e.target)) {
       document.getElementById('tagFilterOptions').style.display = 'none';
-      document.querySelector('.dropdown-arrow').textContent = '▼';
+      document.querySelector('#tagFilterHeader .dropdown-arrow').textContent = '▼';
+    }
+    
+    if (!paginationWrapper.contains(e.target)) {
+      document.getElementById('paginationSizeOptions').style.display = 'none';
+      document.querySelector('#paginationSizeHeader .dropdown-arrow').textContent = '▼';
     }
   });
 
