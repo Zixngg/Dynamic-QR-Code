@@ -470,6 +470,121 @@ export default async function qrRoutes(app: FastifyInstance) {
     return reply.redirect(`/editQR.html?slug=${encodeURIComponent(slug)}&success=Design+updated`);
   });
 
+  // ---------- Update QR (name/slug) ----------
+  app.post('/api/qr/:slug/update', async (req, reply) => {
+    let user: AccessPayload;
+    try { user = getUserOrThrow(req); }
+    catch { return reply.code(401).send({ error: 'unauthorized' }); }
+
+    const { slug } = req.params as any;
+    const body = req.body as any;
+
+    // Debug logging
+    console.log('Update QR request:', { slug, body });
+
+    // Validate input
+    if (!body.name && !body.slug && !body.tags) {
+      console.log('Validation failed: No name, slug, or tags provided');
+      return reply.code(400).send({ error: 'Name, slug, or tags required' });
+    }
+
+    const pool = await getPool();
+    
+    // Check if QR exists and belongs to user
+    const checkResult = await pool.request()
+      .input('uid', SQL.UniqueIdentifier, user.sub)
+      .input('slug', SQL.NVarChar(64), slug)
+      .query('SELECT Id FROM dbo.[QR_Code] WHERE Slug=@slug AND User_Id=@uid');
+
+    if (!checkResult.recordset.length) {
+      return reply.code(404).send({ error: 'QR code not found' });
+    }
+
+    const qrId = checkResult.recordset[0].Id;
+
+    // Build update query dynamically based on what's being updated
+    let updateFields = [];
+    let inputs = [];
+
+    if (body.name) {
+      const name = String(body.name).trim();
+      console.log('Processing name:', name);
+      if (!name) {
+        console.log('Name validation failed: empty name');
+        return reply.code(400).send({ error: 'Name cannot be empty' });
+      }
+      updateFields.push('Name=@name');
+      inputs.push({ name: 'name', type: SQL.NVarChar(255), value: name });
+    }
+
+    if (body.slug) {
+      const newSlug = String(body.slug).trim();
+      console.log('Processing slug:', newSlug);
+      if (!newSlug) {
+        console.log('Slug validation failed: empty slug');
+        return reply.code(400).send({ error: 'Slug cannot be empty' });
+      }
+      if (!/^[a-zA-Z0-9-_]+$/.test(newSlug)) {
+        console.log('Slug validation failed: invalid characters');
+        return reply.code(400).send({ error: 'Slug can only contain letters, numbers, hyphens, and underscores' });
+      }
+      
+      // Check if new slug already exists (excluding current QR)
+      const slugCheck = await pool.request()
+        .input('newSlug', SQL.NVarChar(64), newSlug)
+        .input('currentId', SQL.UniqueIdentifier, qrId)
+        .query('SELECT Id FROM dbo.[QR_Code] WHERE Slug=@newSlug AND Id != @currentId');
+      
+      if (slugCheck.recordset.length > 0) {
+        return reply.code(400).send({ error: 'Slug already exists' });
+      }
+
+      updateFields.push('Slug=@newSlug');
+      inputs.push({ name: 'newSlug', type: SQL.NVarChar(64), value: newSlug });
+    }
+
+    if (body.tags) {
+      console.log('Processing tags:', body.tags);
+      // Validate tags format
+      if (!Array.isArray(body.tags)) {
+        console.log('Tags validation failed: not an array');
+        return reply.code(400).send({ error: 'Tags must be an array' });
+      }
+      
+      // Validate each tag has required fields
+      for (const tag of body.tags) {
+        if (!tag.name || typeof tag.name !== 'string' || !tag.name.trim()) {
+          console.log('Tag validation failed: missing or invalid name');
+          return reply.code(400).send({ error: 'Each tag must have a valid name' });
+        }
+        if (!tag.color || typeof tag.color !== 'string') {
+          console.log('Tag validation failed: missing or invalid color');
+          return reply.code(400).send({ error: 'Each tag must have a valid color' });
+        }
+      }
+      
+      const tagsJson = JSON.stringify(body.tags);
+      updateFields.push('Tags=@tags');
+      inputs.push({ name: 'tags', type: SQL.NVarChar(SQL.MAX), value: tagsJson });
+    }
+
+    if (updateFields.length === 0) {
+      return reply.code(400).send({ error: 'No valid fields to update' });
+    }
+
+    // Execute update
+    let updateQuery = pool.request()
+      .input('qrId', SQL.UniqueIdentifier, qrId);
+    
+    inputs.forEach(input => {
+      updateQuery = updateQuery.input(input.name, input.type, input.value);
+    });
+
+    await updateQuery.query(`UPDATE dbo.[QR_Code] SET ${updateFields.join(', ')} WHERE Id=@qrId`);
+
+    reply.send({ success: true });
+  });
+
   // ---------- Delete QR ----------
   app.post('/qr/:slug/delete', async (req, reply) => {
     let user: AccessPayload;
