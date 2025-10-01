@@ -597,22 +597,6 @@ export default async function qrRoutes(app: FastifyInstance) {
     });
   });
 
-  // ---------- Redirect ----------
-  // app.get('/r/:slug', async (req, reply) => {
-  //   const { slug } = req.params as any;
-  //   const pool = await getPool();
-  //   const q = await pool.request()
-  //     .input('slug', SQL.NVarChar(64), slug)
-  //     .query(`
-  //       SELECT TOP 1 t.Url
-  //       FROM dbo.[QR_Code] q
-  //       JOIN dbo.[QR_Target] t ON t.Id = q.CurrentTargetId
-  //       WHERE q.Slug = @slug
-  //     `);
-  //   if (!q.recordset.length) return reply.code(404).send('Not found');
-  //   return reply.redirect(q.recordset[0].Url);
-  // });
-
   //Zehua
   // ---------- Redirect and log scan ----------
   app.get<{ Querystring: { utm?: string } }>('/r/:slug', async (req, reply) => {
@@ -763,95 +747,112 @@ export default async function qrRoutes(app: FastifyInstance) {
   });
 
   // CSV export
-  app.get('/api/export/scans', async (req, reply) => {
+  app.get("/api/export/scans", async (req, reply) => {
     let user: AccessPayload;
-    try { user = getUserOrThrow(req); }
-    catch { return reply.code(401).send({ error: 'unauthorized' }); }
+    try {
+      user = getUserOrThrow(req);
+    } catch {
+      return reply.code(401).send({ error: "unauthorized" });
+    }
 
-    const { qrCodeId, from, to } = req.query as any;
+    const { qrCodeId, from, to, columns } = req.query as any;
     const pool = await getPool();
 
-    // Build the query with proper column names and joins
+    // Allowed columns mapping
+    const columnMap: Record<string, string> = {
+      Id: "s.Id",
+      OccurredAt: "s.OccurredAt",
+      IP: "s.IP",
+      Country: "s.Country",
+      Region: "s.Region",
+      City: "s.City",
+      DeviceType: "s.DeviceType",
+      OS: "s.OS",
+      Browser: "s.Browser",
+      Referer: "s.Referer",
+      QRName: "q.Name AS QRName",
+      QRSlug: "q.Slug AS QRSlug",
+      TargetUrl: "t.Url AS TargetUrl",
+    };
+
+    // Determine which columns to select
+    let selectedCols: string[];
+    if (columns) {
+      selectedCols = (columns as string)
+        .split(",")
+        .map((c) => c.trim())
+        .filter((c) => columnMap[c]);
+    } else {
+      selectedCols = Object.keys(columnMap);
+    }
+
+    if (selectedCols.length === 0) {
+      return reply.code(400).send({ error: "No valid columns selected" });
+    }
+
+    const selectSql = selectedCols.map((c) => columnMap[c]).join(", ");
+
+    // Build query
     let query = `
-      SELECT 
-        s.Id,
-        s.OccurredAt,
-        s.IP,
-        s.Country,
-        s.Region,
-        s.City,
-        s.DeviceType,
-        s.OS,
-        s.Browser,
-        s.Referer,
-        q.Name AS QRName,
-        q.Slug AS QRSlug,
-        t.Url AS TargetUrl
+      SELECT ${selectSql}
       FROM dbo.[QR_Scan] s
       INNER JOIN dbo.[QR_Code] q ON s.QR_Code_Id = q.Id
       INNER JOIN dbo.[QR_Target] t ON s.Target_Id = t.Id
       WHERE q.User_Id = @uid
     `;
 
-    const request = pool.request().input('uid', SQL.UniqueIdentifier, user.sub);
+    const request = pool.request().input("uid", SQL.UniqueIdentifier, user.sub);
 
-    // Add QR code filter if specified
-    if (qrCodeId && qrCodeId !== 'all') {
-      query += ` AND q.Id = @qrid`;
-      request.input('qrid', SQL.UniqueIdentifier, qrCodeId);
+    if (qrCodeId && qrCodeId !== "all") {
+      query += " AND q.Id = @qrid";
+      request.input("qrid", SQL.UniqueIdentifier, qrCodeId);
+    }
+    if (from) {
+      query += " AND s.OccurredAt >= @from";
+      request.input("from", SQL.DateTime2, new Date(parseInt(from)));
+    }
+    if (to) {
+      query += " AND s.OccurredAt <= @to";
+      request.input("to", SQL.DateTime2, new Date(parseInt(to)));
     }
 
-    // Add date range filter if specified
-    if (from && to) {
-      query += ` AND s.OccurredAt BETWEEN @from AND @to`;
-      request.input('from', SQL.DateTime2, new Date(parseInt(from)));
-      request.input('to', SQL.DateTime2, new Date(parseInt(to)));
-    }
-
-    query += ` ORDER BY s.OccurredAt DESC`;
+    query += " ORDER BY s.OccurredAt DESC";
 
     try {
       const r = await request.query(query);
 
-      if (!r.recordset || r.recordset.length === 0) {
-        // Return empty CSV with headers if no data
-        const csv = 'Id,OccurredAt,IP,Country,Region,City,DeviceType,OS,Browser,Referer,QRName,QRSlug,TargetUrl\n';
-        reply.header('Content-Type', 'text/csv');
-        reply.header('Content-Disposition', 'attachment; filename="scan-history.csv"');
-        return reply.send(csv);
-      }
-
-      // Helper function to escape CSV values
       function escapeCsvValue(value: any): string {
-        if (value === null || value === undefined) return '';
+        if (value === null || value === undefined) return "";
+        if (value instanceof Date) return value.toISOString();
         const str = String(value);
-        // Escape quotes and wrap in quotes if contains comma, quote, or newline
-        if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+        if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
           return `"${str.replace(/"/g, '""')}"`;
         }
         return str;
       }
 
-      // Get column headers from first record
-      const headers = Object.keys(r.recordset[0]);
-      const headerRow = headers.join(',');
+      // CSV header
+      const headerRow = selectedCols.join(",");
 
-      // Convert data rows to CSV format
-      const dataRows = r.recordset.map(row => 
-        headers.map(header => escapeCsvValue(row[header])).join(',')
+      // CSV data
+      const dataRows = r.recordset.map((row) =>
+        selectedCols.map((col) => escapeCsvValue(row[col])).join(",")
       );
 
-      const csv = headerRow + '\n' + dataRows.join('\n');
+      const csv = headerRow + "\n" + dataRows.join("\n");
 
-      reply.header('Content-Type', 'text/csv; charset=utf-8');
-      reply.header('Content-Disposition', 'attachment; filename="scan-history.csv"');
+      reply.header("Content-Type", "text/csv; charset=utf-8");
+      reply.header(
+        "Content-Disposition",
+        `attachment; filename="scan-history-${Date.now()}.csv"`
+      );
       reply.send(csv);
-
-    } catch (error) {
-      console.error('CSV Export Error:', error);
-      reply.code(500).send({ error: 'Failed to export data' });
+    } catch (err) {
+      console.error("CSV export error:", err);
+      reply.code(500).send({ error: "Failed to export CSV" });
     }
   });
+
 
   // Get first scan date for user
   app.get('/api/user/:userId/first-scan-date', async (req, reply) => {

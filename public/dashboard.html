@@ -5,6 +5,10 @@
   <title>Dashboard • Dynamic QR Code</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/header.css">
+
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 </head>
 <script>
   function toggleProfileMenu() {
@@ -73,26 +77,6 @@
     <div class="toolbar">
     <div id="greeting" style="font-weight:600;"></div>
 
-    <!-- <div class="date-filter-section">
-      <div class="section-header">
-        <h3 class="section-title">Scan History Filter</h3>
-      </div>
-
-      <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
-        <div class="date-input-container">
-          <input type="date" id="dateFrom" class="date-input">
-        </div>
-
-        <div class="date-input-container">
-          <input type="date" id="dateTo" class="date-input">
-        </div>
-
-        <button id="applyDateFilter" class="btn" style="width:auto; padding: 0.75rem 1.5rem;">
-          Apply
-        </button>
-      </div>
-    </div> -->
-
     <div class="date-filter-section">
       <div class="section-header">
         <h3 class="section-title">Scan History Filter</h3>
@@ -110,8 +94,8 @@
         </div>
 
         <!-- QR Code Dropdown -->
-        <div class="date-input-container">
-          <select id="qrCodeSelect" class="date-input">
+        <div class="date-input-container" style="min-width: 250px;">
+          <select id="qrCodeSelect" class="date-input" style="width: 100%;">
             <option value="all">All QR Codes</option>
           </select>
         </div>
@@ -123,6 +107,7 @@
         <button id="exportCsv" class="btn" style="width:auto; padding: 0.75rem 1.5rem;">
           Export to CSV
         </button>
+        
 
       </div>
     </div>
@@ -138,7 +123,164 @@
 
   </main>
 
+  <!-- Export Modal -->
+  <div class="modal-overlay" id="exportModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Select Columns to Export</h3>
+        <button class="modal-close" onclick="closeExportModal()">&times;</button>
+      </div>
+      
+      <div class="select-all-section">
+        <div class="select-all-item">
+          <input type="checkbox" id="selectAll" onchange="toggleAllColumns(this.checked)">
+          <label for="selectAll">Select All</label>
+        </div>
+      </div>
+      
+      <div class="column-list" id="columnList">
+        <!-- Columns will be populated dynamically -->
+      </div>
+      
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-cancel" onclick="closeExportModal()">Cancel</button>
+        <button class="modal-btn modal-btn-export" id="confirmExport" onclick="performExport()">Export</button>
+      </div>
+    </div>
+  </div>
+
   <script>
+      // Available columns for export
+  const availableColumns = [
+    { id: 'Id', label: 'Scan ID' },
+    { id: 'OccurredAt', label: 'Date & Time' },
+    { id: 'IP', label: 'IP Address' },
+    { id: 'Country', label: 'Country' },
+    { id: 'Region', label: 'Region' },
+    { id: 'City', label: 'City' },
+    { id: 'DeviceType', label: 'Device Type' },
+    { id: 'OS', label: 'Operating System' },
+    { id: 'Browser', label: 'Browser' },
+    { id: 'Referer', label: 'Referrer' },
+    { id: 'QRName', label: 'QR Code Name' },
+    { id: 'QRSlug', label: 'QR Code Slug' },
+    { id: 'TargetUrl', label: 'Target URL' }
+  ];
+
+  function openExportModal() {
+    const modal = document.getElementById('exportModal');
+    const columnList = document.getElementById('columnList');
+    
+    // Clear existing columns
+    columnList.innerHTML = '';
+    
+    // Add column checkboxes
+    availableColumns.forEach(col => {
+      const item = document.createElement('div');
+      item.className = 'column-item';
+      item.onclick = function(e) {
+        if (e.target.tagName !== 'INPUT') {
+          const checkbox = this.querySelector('input[type="checkbox"]');
+          checkbox.checked = !checkbox.checked;
+          updateSelectAllState();
+        }
+      };
+      
+      item.innerHTML = `
+        <input type="checkbox" id="col_${col.id}" value="${col.id}" checked onclick="event.stopPropagation(); updateSelectAllState();">
+        <label for="col_${col.id}">${col.label}</label>
+      `;
+      
+      columnList.appendChild(item);
+    });
+    
+    // Set select all to checked by default
+    document.getElementById('selectAll').checked = true;
+    
+    modal.classList.add('active');
+  }
+
+  function closeExportModal() {
+    const modal = document.getElementById('exportModal');
+    modal.classList.remove('active');
+  }
+
+  function toggleAllColumns(checked) {
+    const checkboxes = document.querySelectorAll('.column-list input[type="checkbox"]');
+    checkboxes.forEach(cb => cb.checked = checked);
+  }
+
+  function updateSelectAllState() {
+    const checkboxes = document.querySelectorAll('.column-list input[type="checkbox"]');
+    const selectAll = document.getElementById('selectAll');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    selectAll.checked = allChecked;
+  }
+
+  async function performExport() {
+    const selectedColumns = Array.from(document.querySelectorAll('.column-list input[type="checkbox"]:checked'))
+      .map(cb => cb.value);
+    
+    if (selectedColumns.length === 0) {
+      alert('Please select at least one column to export');
+      return;
+    }
+    
+    const fromDate = document.getElementById("dateFrom").value;
+    const toDate = document.getElementById("dateTo").value;
+    const qrSelect = document.getElementById("qrCodeSelect");
+    const qrCodeId = qrSelect.value;
+
+    const fromEpoch = fromDate ? new Date(fromDate + "T00:00:00").getTime() : null;
+    const toEpochVal = toDate ? new Date(toDate + "T23:59:59").getTime() : null;
+
+    // Build export URL with selected columns
+    let exportUrl = `/api/export/scans?qrCodeId=${qrCodeId}&columns=${selectedColumns.join(',')}`;
+
+    if (fromEpoch && toEpochVal) {
+      exportUrl += `&from=${fromEpoch}&to=${toEpochVal}`;
+    }
+
+    try {
+      const res = await fetch(exportUrl, { credentials: 'include' });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Export failed:', res.status, errorText);
+        alert(`Failed to export CSV: ${res.status} ${res.statusText}`);
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const qrName = qrCodeId === 'all' ? 'all-qr-codes' : 'qr-specific';
+      a.download = `scan-history-${qrName}-${dateStr}.csv`;
+      
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      
+      console.log('CSV export completed successfully');
+      closeExportModal();
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Failed to export CSV. Please try again.');
+    }
+  }
+
+  // Close modal when clicking outside
+  document.getElementById('exportModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeExportModal();
+    }
+  });
+
   (async function() {
     // get current logged-in user
     const r = await fetch('/api/me', { credentials: 'include' });
@@ -166,6 +308,12 @@
 
       // Make sure default selection is "all"
       qrSelect.value = 'all';
+
+      $('#qrCodeSelect').select2({
+        placeholder: 'Search QR Codes',
+        allowClear: true,
+        width: '100%'
+      });
     }
 
       // Fetch first scan date to set as default "from" date
@@ -229,55 +377,7 @@
     loadHistoryChart();
 
     // export CSV
-    document.getElementById("exportCsv").addEventListener("click", async () => {
-      const fromDate = document.getElementById("dateFrom").value;
-      const toDate = document.getElementById("dateTo").value;
-      const qrSelect = document.getElementById("qrCodeSelect");
-      const qrCodeId = qrSelect.value;
-
-      const fromEpoch = fromDate ? new Date(fromDate + "T00:00:00").getTime() : null;
-      const toEpochVal = toDate ? new Date(toDate + "T23:59:59").getTime() : null;
-
-      // Build export URL
-      let exportUrl = `/api/export/scans?qrCodeId=${qrCodeId}`;
-
-      if (fromEpoch && toEpochVal) {
-        exportUrl += `&from=${fromEpoch}&to=${toEpochVal}`;
-      }
-
-      try {
-        // fetch CSV from backend
-        const res = await fetch(exportUrl, { credentials: 'include' });
-        
-        if (!res.ok) {
-          const errorText = await res.text();
-          console.error('Export failed:', res.status, errorText);
-          alert(`Failed to export CSV: ${res.status} ${res.statusText}`);
-          return;
-        }
-
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        
-        // Generate filename with current date/time
-        const now = new Date();
-        const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
-        const qrName = qrCodeId === 'all' ? 'all-qr-codes' : 'qr-specific';
-        a.download = `scan-history-${qrName}-${dateStr}.csv`;
-        
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-        
-        console.log('CSV export completed successfully');
-      } catch (error) {
-        console.error('Export error:', error);
-        alert('Failed to export CSV. Please try again.');
-      }
-    });
+    document.getElementById("exportCsv").addEventListener("click", openExportModal);
 
     // Greeting
     document.getElementById('greeting').textContent = `Hello, ${me.email}`;
