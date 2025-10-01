@@ -260,3 +260,166 @@ html,body{
   padding: 1rem;
   text-align: center;
 }
+
+
+
+
+/* Modal Styles */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .modal-overlay.active {
+      display: flex;
+    }
+    
+    .modal-card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .modal-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin: 0;
+    }
+    
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      color: #64748b;
+    }
+    
+    .modal-close:hover {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+    
+    .column-list {
+      margin-bottom: 20px;
+    }
+    
+    .column-item {
+      display: flex;
+      align-items: center;
+      padding: 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    
+    .column-item:hover {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+    }
+    
+    .column-item input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      margin-right: 12px;
+      cursor: pointer;
+    }
+    
+    .column-item label {
+      cursor: pointer;
+      user-select: none;
+      flex: 1;
+      font-size: 0.95rem;
+    }
+    
+    .select-all-section {
+      padding: 12px;
+      background: #f8fafc;
+      border-radius: 6px;
+      margin-bottom: 16px;
+    }
+    
+    .select-all-item {
+      display: flex;
+      align-items: center;
+    }
+    
+    .select-all-item input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      margin-right: 12px;
+      cursor: pointer;
+    }
+    
+    .select-all-item label {
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+    
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+    
+    .modal-btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s ease;
+    }
+    
+    .modal-btn-cancel {
+      background: #f1f5f9;
+      color: #475569;
+    }
+    
+    .modal-btn-cancel:hover {
+      background: #e2e8f0;
+    }
+    
+    .modal-btn-export {
+      background: var(--primary);
+      color: white;
+    }
+    
+    .modal-btn-export:hover {
+      background: var(--primary-600);
+    }
+    
+    .modal-btn-export:disabled {
+      background: #cbd5e1;
+      cursor: not-allowed;
+    }
