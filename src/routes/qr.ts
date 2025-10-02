@@ -535,9 +535,9 @@ export default async function qrRoutes(app: FastifyInstance) {
     console.log('Update QR request:', { slug, body });
 
     // Validate input
-    if (!body.name && !body.slug && !body.tags) {
-      console.log('Validation failed: No name, slug, or tags provided');
-      return reply.code(400).send({ error: 'Name, slug, or tags required' });
+    if (!body.name && !body.tags) {
+      console.log('Validation failed: No name or tags provided');
+      return reply.code(400).send({ error: 'Name or tags required' });
     }
 
     const pool = await getPool();
@@ -567,32 +567,6 @@ export default async function qrRoutes(app: FastifyInstance) {
       }
       updateFields.push('Name=@name');
       inputs.push({ name: 'name', type: SQL.NVarChar(255), value: name });
-    }
-
-    if (body.slug) {
-      const newSlug = String(body.slug).trim();
-      console.log('Processing slug:', newSlug);
-      if (!newSlug) {
-        console.log('Slug validation failed: empty slug');
-        return reply.code(400).send({ error: 'Slug cannot be empty' });
-      }
-      if (!/^[a-zA-Z0-9-_]+$/.test(newSlug)) {
-        console.log('Slug validation failed: invalid characters');
-        return reply.code(400).send({ error: 'Slug can only contain letters, numbers, hyphens, and underscores' });
-      }
-      
-      // Check if new slug already exists (excluding current QR)
-      const slugCheck = await pool.request()
-        .input('newSlug', SQL.NVarChar(64), newSlug)
-        .input('currentId', SQL.UniqueIdentifier, qrId)
-        .query('SELECT Id FROM dbo.[QR_Code] WHERE Slug=@newSlug AND Id != @currentId');
-      
-      if (slugCheck.recordset.length > 0) {
-        return reply.code(400).send({ error: 'Slug already exists' });
-      }
-
-      updateFields.push('Slug=@newSlug');
-      inputs.push({ name: 'newSlug', type: SQL.NVarChar(64), value: newSlug });
     }
 
     if (body.tags) {
