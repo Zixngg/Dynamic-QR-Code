@@ -875,19 +875,26 @@ export default async function qrRoutes(app: FastifyInstance) {
 
     // Allowed columns mapping
     const columnMap: Record<string, string> = {
-      Id: "s.Id",
       OccurredAt: "s.OccurredAt",
-      IP: "s.IP",
+      QRName: "q.Name AS QRName",
       Country: "s.Country",
       Region: "s.Region",
       City: "s.City",
+      IP: "s.IP",
       DeviceType: "s.DeviceType",
       OS: "s.OS",
       Browser: "s.Browser",
+      Lang: "s.Lang",
       Referer: "s.Referer",
-      QRName: "q.Name AS QRName",
+      UTM:"s.UTM",
+      QR_Code_Id:"s.QR_Code_Id",
+      Target_Id:"s.Target_Id",
+      Lat:"s.Lat",
+      Lon:"s.Lon",
+      UA_Raw:"s.UA_Raw",
+      UA_Hints:"s.UA_Hints",
       QRSlug: "q.Slug AS QRSlug",
-      TargetUrl: "t.Url AS TargetUrl",
+      TargetUrl: "t.Url AS TargetUrl"
     };
 
     // Determine which columns to select
