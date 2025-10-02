@@ -273,7 +273,35 @@ export default async function qrRoutes(app: FastifyInstance) {
         campaign: utmCampaign || null
       });
 
-      const slug = Math.random().toString(36).substring(2, 9);
+      // Use custom slug from form or generate random one
+      let slug = String(body.slug || '').trim();
+      if (!slug) {
+        // Generate random slug if none provided
+        slug = Math.random().toString(36).substring(2, 9);
+      } else {
+        // Validate custom slug format
+        if (!/^[a-zA-Z0-9\-]+$/.test(slug)) {
+          throw new Error('Slug can only contain letters, numbers, and hyphens');
+        }
+        if (slug.length < 3) {
+          throw new Error('Slug must be at least 3 characters long');
+        }
+        if (slug.length > 50) {
+          throw new Error('Slug must be less than 50 characters');
+        }
+        if (slug.startsWith('-') || slug.endsWith('-')) {
+          throw new Error('Slug cannot start or end with a hyphen');
+        }
+        
+        // Check if slug already exists
+        const slugCheck = await pool.request()
+          .input('checkSlug', SQL.NVarChar(64), slug)
+          .query('SELECT Id FROM dbo.[QR_Code] WHERE Slug=@checkSlug');
+        
+        if (slugCheck.recordset.length > 0) {
+          throw new Error('Slug already exists. Please choose a different one.');
+        }
+      }
 
       // capture design from form selections (fallbacks match UI defaults)
       const fg = String(body.fg || '#0b3d91');
@@ -286,16 +314,40 @@ export default async function qrRoutes(app: FastifyInstance) {
 
       const design = JSON.stringify({ fg, bg, ec, format, logoUrl, logoSizePct });
 
-      // insert QR code with design
+      // Parse tags from form submission
+      let tagsJson = null;
+      if (body.tags) {
+        try {
+          const tags = typeof body.tags === 'string' ? JSON.parse(body.tags) : body.tags;
+          if (Array.isArray(tags) && tags.length > 0) {
+            // Validate each tag has required fields
+            for (const tag of tags) {
+              if (!tag.name || typeof tag.name !== 'string' || !tag.name.trim()) {
+                throw new Error('Each tag must have a valid name');
+              }
+              if (!tag.color || typeof tag.color !== 'string') {
+                throw new Error('Each tag must have a valid color');
+              }
+            }
+            tagsJson = JSON.stringify(tags);
+          }
+        } catch (e) {
+          console.error('Error parsing tags:', e);
+          // Continue without tags if parsing fails
+        }
+      }
+
+      // insert QR code with design and tags
       const qrIns = await pool.request()
         .input('uid', SQL.UniqueIdentifier, user.sub)
         .input('name', SQL.NVarChar(200), name)
         .input('slug', SQL.NVarChar(64), slug)
         .input('design', SQL.NVarChar(SQL.MAX), design)
+        .input('tags', SQL.NVarChar(SQL.MAX), tagsJson)
         .query(`
-          INSERT INTO dbo.[QR_Code] (User_Id, Name, Slug, Design)
+          INSERT INTO dbo.[QR_Code] (User_Id, Name, Slug, Design, Tags)
           OUTPUT inserted.Id
-          VALUES (@uid, @name, @slug, @design);
+          VALUES (@uid, @name, @slug, @design, @tags);
         `);
 
       const qrId = qrIns.recordset[0].Id as string;
