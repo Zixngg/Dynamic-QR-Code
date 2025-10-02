@@ -5,6 +5,10 @@
   padding: 0 24px;
 }
 
+.list.no-pagination {
+  padding-bottom: 32px;
+}
+
 /* List Header with Search */
 .list-header {
   display: flex;

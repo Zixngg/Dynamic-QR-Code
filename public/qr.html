@@ -145,13 +145,16 @@
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
     const paginationPages = document.getElementById('paginationPages');
+    const mainContainer = document.querySelector('.list');
 
     if (totalPages <= 1) {
       pagination.style.display = 'none';
+      mainContainer.classList.add('no-pagination');
       return;
     }
 
     pagination.style.display = 'flex';
+    mainContainer.classList.remove('no-pagination');
     
     prevBtn.disabled = currentPage === 1;
     nextBtn.disabled = currentPage === totalPages;

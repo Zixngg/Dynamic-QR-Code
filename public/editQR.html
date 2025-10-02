@@ -47,7 +47,6 @@
             <div class="info-item" style="margin-bottom: 8px;">
               <strong>Slug:</strong> 
               <span id="qrSlug" class="editable-field" data-field="slug">—</span>
-              <button class="edit-btn" onclick="editField('slug')" title="Edit slug">✏️</button>
             </div>
             <div class="info-item" style="margin-bottom: 8px;">
               <strong>Tags:</strong> 
@@ -756,11 +755,6 @@
       input.className = 'edit-input';
       input.maxLength = fieldType === 'name' ? 100 : 50;
       
-      if (fieldType === 'slug') {
-        input.pattern = '[a-zA-Z0-9-_]+';
-        input.title = 'Only letters, numbers, hyphens, and underscores allowed';
-      }
-      
       const actionsContainer = document.createElement('div');
       actionsContainer.className = 'edit-actions';
       
@@ -894,11 +888,6 @@
       return;
     }
     
-    if (fieldType === 'slug' && !/^[a-zA-Z0-9-_]+$/.test(newValue)) {
-      alert('Slug can only contain letters, numbers, hyphens, and underscores');
-      return;
-    }
-    
     if (newValue === fieldElement.textContent) {
       cancelFieldEdit(fieldElement, newValue);
       return;
@@ -928,25 +917,8 @@
       msgEl.className = 'success';
       msgEl.textContent = `${fieldType.charAt(0).toUpperCase() + fieldType.slice(1)} updated successfully`;
       
-      // If slug changed, update the page URL and all references
-      if (fieldType === 'slug') {
-        originalSlug = newValue;
-        // Update the page URL without reload
-        const newUrl = new URL(window.location);
-        newUrl.searchParams.set('slug', newValue);
-        window.history.replaceState({}, '', newUrl);
-        
-        // Update all links and references
-        document.getElementById('qrDyn').href = `/r/${encodeURIComponent(newValue)}`;
-        document.getElementById('dlLink').href = `/qr/${encodeURIComponent(newValue)}/svg`;
-        document.querySelector('img#qrImg').src = `/qr/${encodeURIComponent(newValue)}/svg`;
-        
-        // Update qrData
-        qrData.Slug = newValue;
-      } else {
-        // Update qrData
-        qrData.Name = newValue;
-      }
+      // Update qrData
+      qrData.Name = newValue;
       
       cancelFieldEdit(fieldElement, newValue);
     } catch (error) {
