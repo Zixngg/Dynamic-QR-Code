@@ -102,9 +102,17 @@
           <div class="tags-input-container">
             <div class="tags-display" id="tagsDisplay"></div>
             <div class="tag-input-row">
-              <input type="text" id="tagNameInput" placeholder="Tag name" class="input">
+              <div class="tag-input-group">
+                <input type="text" id="tagNameInput" placeholder="Tag name" class="input">
+                <div class="existing-tags-dropdown" id="existingTagsDropdown" style="display: none;">
+                  <div class="dropdown-content" id="existingTagsList"></div>
+                </div>
+              </div>
               <input type="color" id="tagColorInput" value="#4ecdc4" class="color-picker">
               <button type="button" id="addTagBtn" class="btn btn-secondary">Add</button>
+            </div>
+            <div class="existing-tags-hint">
+              <span class="hint-text">💡 Start typing to see existing tags, or create a new one</span>
             </div>
           </div>
           <div class="help">Add tags to organize your QR codes. You can filter by tags later.</div>
@@ -324,6 +332,77 @@
 
   // Tag management
   let tags = [];
+  let existingTags = [];
+  
+  // Load existing tags from API
+  async function loadExistingTags() {
+    try {
+      const response = await fetch('/api/my/tags', { credentials: 'include' });
+      if (response.ok) {
+        existingTags = await response.json();
+        console.log('Loaded existing tags:', existingTags);
+      } else {
+        console.warn('Failed to load existing tags:', response.status);
+      }
+    } catch (error) {
+      console.error('Error loading existing tags:', error);
+    }
+  }
+  
+  // Filter existing tags based on input
+  function filterExistingTags(inputValue) {
+    if (!inputValue || inputValue.length < 1) {
+      return [];
+    }
+    
+    const lowerInput = inputValue.toLowerCase();
+    return existingTags.filter(tag => 
+      tag.name.toLowerCase().includes(lowerInput) &&
+      !tags.some(existingTag => existingTag.name.toLowerCase() === tag.name.toLowerCase())
+    );
+  }
+  
+  // Show dropdown with filtered tags
+  function showTagDropdown(filteredTags) {
+    const dropdown = document.getElementById('existingTagsDropdown');
+    const dropdownList = document.getElementById('existingTagsList');
+    
+    if (filteredTags.length === 0) {
+      dropdown.style.display = 'none';
+      return;
+    }
+    
+    dropdownList.innerHTML = filteredTags.map(tag => `
+      <div class="dropdown-item" onclick="selectExistingTag('${tag.name}', '${tag.color}')">
+        <span class="tag-preview" style="background-color: ${tag.color};">
+          ${tag.name}
+        </span>
+        <span>Use existing tag</span>
+      </div>
+    `).join('');
+    
+    dropdown.style.display = 'block';
+  }
+  
+  // Hide dropdown
+  function hideTagDropdown() {
+    const dropdown = document.getElementById('existingTagsDropdown');
+    dropdown.style.display = 'none';
+  }
+  
+  // Select existing tag
+  function selectExistingTag(name, color) {
+    const nameInput = document.getElementById('tagNameInput');
+    const colorInput = document.getElementById('tagColorInput');
+    
+    nameInput.value = name;
+    colorInput.value = color;
+    
+    hideTagDropdown();
+    
+    // Auto-add the tag
+    addTag();
+  }
   
   function addTag() {
     const nameInput = document.getElementById('tagNameInput');
@@ -379,6 +458,30 @@
       e.preventDefault();
       addTag();
     }
+  });
+  
+  // Handle tag input changes for dropdown
+  document.getElementById('tagNameInput').addEventListener('input', (e) => {
+    const inputValue = e.target.value.trim();
+    const filteredTags = filterExistingTags(inputValue);
+    showTagDropdown(filteredTags);
+  });
+  
+  // Hide dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    const tagInputGroup = document.querySelector('.tag-input-group');
+    const dropdown = document.getElementById('existingTagsDropdown');
+    
+    if (!tagInputGroup.contains(e.target)) {
+      hideTagDropdown();
+    }
+  });
+  
+  // Hide dropdown when input loses focus (with delay to allow clicks on dropdown items)
+  document.getElementById('tagNameInput').addEventListener('blur', () => {
+    setTimeout(() => {
+      hideTagDropdown();
+    }, 150);
   });
 
   // Progress indicator
@@ -780,6 +883,9 @@
     setupLogoUpload();
     setupFormValidation();
     setupSlugGeneration();
+    
+    // Load existing tags
+    loadExistingTags();
     
     // Add event listeners for preview updates
     ['fg','bg','ec','logoSizePct','name','url','slug','utm_source','utm_medium','utm_campaign'].forEach(name => {

@@ -1032,4 +1032,48 @@ export default async function qrRoutes(app: FastifyInstance) {
     });
   });
 
+  // Get all existing tags for the current user
+  app.get('/api/my/tags', async (req, reply) => {
+    let user: AccessPayload;
+    try { user = getUserOrThrow(req); }
+    catch { return reply.code(401).send({ error: 'unauthorized' }); }
+
+    const pool = await getPool();
+    const r = await pool.request()
+      .input('uid', SQL.UniqueIdentifier, user.sub)
+      .query(`
+        SELECT DISTINCT Tags
+        FROM dbo.[QR_Code]
+        WHERE User_Id = @uid AND Tags IS NOT NULL AND Tags != ''
+      `);
+
+    const allTags = new Map();
+    
+    r.recordset.forEach(row => {
+      if (row.Tags) {
+        try {
+          const tags = typeof row.Tags === 'string' ? JSON.parse(row.Tags) : row.Tags;
+          if (Array.isArray(tags)) {
+            tags.forEach(tag => {
+              if (tag.name && tag.color) {
+                // Use the first occurrence of each tag name (keep original color)
+                if (!allTags.has(tag.name.toLowerCase())) {
+                  allTags.set(tag.name.toLowerCase(), {
+                    name: tag.name,
+                    color: tag.color
+                  });
+                }
+              }
+            });
+          }
+        } catch (e) {
+          console.error('Error parsing tags:', e);
+        }
+      }
+    });
+
+    const uniqueTags = Array.from(allTags.values()).sort((a, b) => a.name.localeCompare(b.name));
+    reply.send(uniqueTags);
+  });
+
 }
