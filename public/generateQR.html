@@ -121,39 +121,7 @@
         </div>
       </div>
 
-      <!-- Section 2: UTM Tracking -->
-      <div class="form-section collapsible" data-section="1">
-        <div class="section-header" onclick="toggleSection(this)">
-          <h3>📊 UTM Tracking</h3>
-          <div class="header-right">
-            <span class="section-badge optional">Optional</span>
-            <span class="toggle-icon">▼</span>
-          </div>
-        </div>
-        <div class="section-content" style="display: none;">
-          <div class="section-description">
-            Track your QR code performance with UTM parameters. These help you identify traffic sources in Google Analytics.
-          </div>
-          
-          <div class="row row-inline">
-            <div class="input-group">
-              <label class="input-label">utm_source</label>
-              <input class="input" type="text" name="utm_source" placeholder="e.g., flyer, poster, business-card">
-              <div class="help">Where did users find this QR code?</div>
-            </div>
-            <div class="input-group">
-              <label class="input-label">utm_medium</label>
-              <input class="input" type="text" name="utm_medium" placeholder="e.g., qr, print, digital">
-              <div class="help">What type of medium?</div>
-            </div>
-            <div class="input-group">
-              <label class="input-label">utm_campaign</label>
-              <input class="input" type="text" name="utm_campaign" placeholder="e.g., summer2024, launch-event">
-              <div class="help">What campaign is this for?</div>
-            </div>
-          </div>
-        </div>
-      </div>
+      
 
       <!-- Design and Preview Side-by-Side -->
       <div class="form-section collapsible" data-section="2">
@@ -534,9 +502,9 @@
     const logoSizePct = document.getElementById('logoSizePct').value || '22';
     const url = document.querySelector('[name="url"]').value || '';
     const slug = document.querySelector('[name="slug"]').value || '';
-    const utmSource = document.querySelector('[name="utm_source"]').value || '';
-    const utmMedium = document.querySelector('[name="utm_medium"]').value || '';
-    const utmCampaign = document.querySelector('[name="utm_campaign"]').value || '';
+    const utmSource = '';
+    const utmMedium = '';
+    const utmCampaign = '';
 
     // Build the preview URL with actual destination
     let previewUrl = url;
@@ -889,7 +857,7 @@
     loadExistingTags();
     
     // Add event listeners for preview updates
-    ['fg','bg','ec','logoSizePct','name','url','slug','utm_source','utm_medium','utm_campaign'].forEach(name => {
+    ['fg','bg','ec','logoSizePct','name','url','slug'].forEach(name => {
       const element = document.querySelector(`[name="${name}"]`);
       if (element) {
         element.addEventListener('change', refreshPreview);

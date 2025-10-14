@@ -10,7 +10,7 @@ const Env = z.object({
 
   // Auth + cookies
   JWT_SECRET: z.string().min(16),
-  ACCESS_TTL_MIN: z.coerce.number().default(15),   // access token lifetime (minutes)
+  ACCESS_TTL_MIN: z.coerce.number().default(60),   // access token lifetime (minutes)
   REFRESH_TTL_DAYS: z.coerce.number().default(30), // refresh token lifetime (days)
   COOKIE_DOMAIN: z.string().default('localhost'),
 });

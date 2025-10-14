@@ -89,23 +89,7 @@
           <div class="help">The new webpage users will see after scanning your QR code.</div>
         </div>
 
-        <div class="row row-inline">
-          <div class="input-group">
-            <label class="input-label">utm_source</label>
-            <input class="input" type="text" name="utm_source" id="utm_source" placeholder="e.g., flyer, poster, business-card">
-            <div class="help">Where did users find this QR code?</div>
-          </div>
-          <div class="input-group">
-            <label class="input-label">utm_medium</label>
-            <input class="input" type="text" name="utm_medium" id="utm_medium" placeholder="e.g., qr, print, digital">
-            <div class="help">What type of medium?</div>
-          </div>
-          <div class="input-group">
-            <label class="input-label">utm_campaign</label>
-            <input class="input" type="text" name="utm_campaign" id="utm_campaign" placeholder="e.g., summer2024, launch-event">
-            <div class="help">What campaign is this for?</div>
-          </div>
-        </div>
+      
       </div>
 
       <div class="form-actions">
@@ -322,17 +306,7 @@
       originalSlug = qrData.Slug;
       
       // Populate UTM data
-      if (qrData.UTM) {
-        if (qrData.UTM.source && qrData.UTM.source !== null && qrData.UTM.source !== '') {
-          document.getElementById('utm_source').value = qrData.UTM.source;
-        }
-        if (qrData.UTM.medium && qrData.UTM.medium !== null && qrData.UTM.medium !== '') {
-          document.getElementById('utm_medium').value = qrData.UTM.medium;
-        }
-        if (qrData.UTM.campaign && qrData.UTM.campaign !== null && qrData.UTM.campaign !== '') {
-          document.getElementById('utm_campaign').value = qrData.UTM.campaign;
-        }
-      }
+        // UTM fields removed from UI; values are no longer populated here
 
       // Populate design data
       if (qrData.Design) {
@@ -578,10 +552,7 @@
     targetMsgEl.textContent = '';
 
     const urlParams = new URLSearchParams({
-      url: document.getElementById('url').value,
-      utm_source: document.getElementById('utm_source').value,
-      utm_medium: document.getElementById('utm_medium').value,
-      utm_campaign: document.getElementById('utm_campaign').value
+      url: document.getElementById('url').value
     });
 
     const r = await fetch('/qr/' + encodeURIComponent(slug) + '/retarget', {
@@ -662,7 +633,7 @@
     setupLogoUpload();
     
     // Add event listeners for preview updates
-    ['fg','bg','ec','logoSizePct','url','utm_source','utm_medium','utm_campaign'].forEach(name => {
+    ['fg','bg','ec','logoSizePct','url'].forEach(name => {
       const element = document.getElementById(name);
       if (element) {
         element.addEventListener('change', refreshPreview);
