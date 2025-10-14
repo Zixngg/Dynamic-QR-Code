@@ -275,7 +275,7 @@
       </div>
       <div class="qr-info">
         <div class="qr-info-left">
-          <h3 class="qr-name">${qr.Name}</h3>
+          <h3 class="qr-name" title="${qr.Name}">${qr.Name}</h3>
           <p class="qr-slug">${qr.Slug}</p>
           <p class="qr-date">Created ${new Date(qr.CreatedAt).toLocaleDateString()}</p>
           <p class="qr-scans">📊 ${qr.ScanCount || 0} scans</p>
