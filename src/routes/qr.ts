@@ -304,7 +304,7 @@ export default async function qrRoutes(app: FastifyInstance) {
       }
 
       // capture design from form selections (fallbacks match UI defaults)
-      const fg = String(body.fg || '#0b3d91');
+      const fg = String(body.fg || '#000089');
       const bg = String(body.bg || '#ffffff');
       const ec = String(body.ec || 'M').toUpperCase();
       const format = String(body.format || 'svg').toLowerCase();

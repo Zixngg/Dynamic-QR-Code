@@ -80,7 +80,7 @@
             <span class="label-optional">Optional</span>
           </label>
           <div class="input-with-prefix">
-            <span class="input-prefix">yourdomain.com/r/</span>
+            <span class="input-prefix">dynamicqr.sg-akc.com/r/</span>
             <input class="input" type="text" name="slug" placeholder="summer-promo" pattern="[a-zA-Z0-9\-]+">
           </div>
           <div class="help">Create a custom short link. If left blank, we'll generate one automatically (e.g., abc123).</div>
@@ -147,8 +147,8 @@
                   <div class="color-inputs">
                     <div class="color-input">
                       <label class="color-label">Foreground</label>
-                      <input class="input color-picker" type="color" name="fg" value="#0b3d91">
-                      <span class="color-value">#0b3d91</span>
+                      <input class="input color-picker" type="color" name="fg" value="#000089">
+                      <span class="color-value">#000089</span>
                     </div>
                     <div class="color-input">
                       <label class="color-label">Background</label>
@@ -224,7 +224,7 @@
               <div class="preview-info">
                 <div class="info-item">
                   <span class="info-label">Short Link:</span>
-                  <span class="info-value" id="previewShortLink">yourdomain.com/r/abc123</span>
+                  <span class="info-value" id="previewShortLink">dynamicqr.sg-akc.com/r/abc123</span>
                 </div>
                 <div class="info-item">
                   <span class="info-label">Destination:</span>
@@ -602,7 +602,7 @@
     
     // Update preview info
     const shortLinkSlug = slug || 'abc123';
-    const shortLink = `yourdomain.com/r/${shortLinkSlug}`;
+    const shortLink = `dynamicqr.sg-akc.com/r/${shortLinkSlug}`;
     const destination = previewUrl || 'https://example.com';
     
     document.getElementById('previewShortLink').textContent = shortLink;
