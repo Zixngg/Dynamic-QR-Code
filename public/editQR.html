@@ -375,23 +375,10 @@
       const logoUrl = document.getElementById('logoUrl').value || '';
       const logoSizePct = document.getElementById('logoSizePct').value || '22';
     const url = document.getElementById('url').value || '';
-    const utmSource = document.getElementById('utm_source').value || '';
-    const utmMedium = document.getElementById('utm_medium').value || '';
-    const utmCampaign = document.getElementById('utm_campaign').value || '';
 
     // Build the preview URL with actual destination
     let previewUrl = url;
-    if (previewUrl) {
-      // Add UTM parameters if provided
-      const utmParams = new URLSearchParams();
-      if (utmSource) utmParams.set('utm_source', utmSource);
-      if (utmMedium) utmParams.set('utm_medium', utmMedium);
-      if (utmCampaign) utmParams.set('utm_campaign', utmCampaign);
-      
-      if (utmParams.toString()) {
-        previewUrl += (previewUrl.includes('?') ? '&' : '?') + utmParams.toString();
-      }
-    }
+    // UTM fields removed; use URL as-is for preview
 
     const qs = new URLSearchParams({ 
       fg, 
