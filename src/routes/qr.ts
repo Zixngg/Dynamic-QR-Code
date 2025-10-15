@@ -8,6 +8,7 @@ import useragent from 'useragent';
 import geoip from 'geoip-lite';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { createCanvas, loadImage } from 'canvas';
 
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || 'http://localhost:8080';
 
@@ -686,6 +687,8 @@ export default async function qrRoutes(app: FastifyInstance) {
   // ---------- Serve QR as PNG ----------
   app.get('/qr/:slug/png', async (req, reply) => {
     const { slug } = req.params as any;
+    const q = (req.query as any) || {};
+    const wantTransparent = String(q.transparent || '0') === '1';
     const pool = await getPool();
     const r = await pool.request()
       .input('slug', SQL.NVarChar(64), slug)
@@ -694,6 +697,7 @@ export default async function qrRoutes(app: FastifyInstance) {
 
     const design = JSON.parse(r.recordset[0].Design || '{}');
     const fg = design.fg || '#0b3d91';
+    const bg = design.bg || '#ffffff';
     const ecMap: any = { L: 'low', M: 'medium', Q: 'quartile', H: 'high' };
     const errorCorrectionLevel = ecMap[(design.ec || 'M')] || 'medium';
 
@@ -703,26 +707,32 @@ export default async function qrRoutes(app: FastifyInstance) {
     if (design.logoUrl) {
       let svg = await QRCode.toString(content, {
         type: 'svg',
-        color: { dark: fg }, // omit light for transparent background
+        color: wantTransparent ? { dark: fg } : { dark: fg, light: bg },
         errorCorrectionLevel,
         margin: 2,
         width: 512
       });
       const href = await resolveLogoHref(design.logoUrl);
-      if (href) svg = injectLogoIntoSvg(svg, href, Number(design.logoSizePct) || 22, false, 'transparent', fg);
-      
-      // Convert SVG to PNG using QRCode library
-      const pngBuffer = await QRCode.toBuffer(svg, {
-        type: 'png',
-        width: 512
-      });
+      if (href) svg = injectLogoIntoSvg(svg, href, Number(design.logoSizePct) || 22, false, wantTransparent ? 'transparent' : bg, fg);
+
+      // Rasterize SVG to PNG with transparent background using node-canvas
+      const size = 512;
+      const canvas = createCanvas(size, size);
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, size, size);
+      const dataUrl = 'data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64');
+      const img = await loadImage(dataUrl);
+      ctx.drawImage(img, 0, 0, size, size);
+      const pngBuffer = canvas.toBuffer('image/png');
       
       reply.header('Content-Type', 'image/png').send(pngBuffer);
     } else {
       // Generate PNG with transparent background (no logo)
       const pngBuffer = await QRCode.toBuffer(content, {
         type: 'png',
-        color: { dark: fg }, // omit light for transparent background
+        color: wantTransparent
+          ? { dark: fg, light: '#00000000' } // fully transparent background
+          : { dark: fg, light: bg },
         errorCorrectionLevel,
         margin: 2,
         width: 512

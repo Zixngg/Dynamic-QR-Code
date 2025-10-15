@@ -65,6 +65,10 @@
                   <option value="png">PNG</option>
                   <option value="jpeg">JPEG</option>
                 </select>
+                <label id="transparentToggle" style="display:none; align-items:center; gap:6px; font-size: 0.9rem;">
+                  <input type="checkbox" id="transparentPng">
+                  Transparent background
+                </label>
                 <a id="dlLink" class="link" href="#" download>Download</a>
               </div>
             </div>
@@ -614,12 +618,31 @@
     }
   });
 
-  // Download functionality
+  // Download functionality with transparent PNG option
+  const downloadFormatEl = document.getElementById('downloadFormat');
+  const transparentToggle = document.getElementById('transparentToggle');
+  const transparentPng = document.getElementById('transparentPng');
+
+  function updateTransparentToggleVisibility() {
+    if (downloadFormatEl.value === 'png') {
+      transparentToggle.style.display = 'inline-flex';
+    } else {
+      transparentToggle.style.display = 'none';
+    }
+  }
+
+  downloadFormatEl.addEventListener('change', updateTransparentToggleVisibility);
+  updateTransparentToggleVisibility();
+
   document.getElementById('dlLink').addEventListener('click', (e) => {
     e.preventDefault();
-    const format = document.getElementById('downloadFormat').value;
+    const format = downloadFormatEl.value;
     const link = document.createElement('a');
-    link.href = '/qr/' + encodeURIComponent(slug) + '/' + format;
+    let href = '/qr/' + encodeURIComponent(slug) + '/' + format;
+    if (format === 'png' && transparentPng.checked) {
+      href += '?transparent=1';
+    }
+    link.href = href;
     link.download = slug + '.' + format;
     link.click();
   });
