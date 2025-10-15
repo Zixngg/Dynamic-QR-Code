@@ -353,10 +353,10 @@
 
     // inject userId into Grafana iframe URLs
     const todayIframe = document.getElementById('chart-today');
-    todayIframe.src = `http://analytics.sg-akc.com/d-solo/bc26ffb9-588c-4033-a77b-5a10af9df52d/dynamic-qr-code?orgId=1&from=now-1d&to=now&timezone=browser&panelId=1&var-userId=${me.id}`;
+    todayIframe.src = `https://analytics.sg-akc.com/d-solo/bc26ffb9-588c-4033-a77b-5a10af9df52d/dynamic-qr-code?orgId=1&from=now-1d&to=now&timezone=browser&panelId=1&var-userId=${me.id}`;
 
     const todayPerQrIframe = document.getElementById('chart-today-per-qr');
-    todayPerQrIframe.src = `http://analytics.sg-akc.com/d-solo/bc26ffb9-588c-4033-a77b-5a10af9df52d/dynamic-qr-code?orgId=1&from=now-1d&to=now&timezone=browser&panelId=3&var-userId=${me.id}`;
+    todayPerQrIframe.src = `https://analytics.sg-akc.com/d-solo/bc26ffb9-588c-4033-a77b-5a10af9df52d/dynamic-qr-code?orgId=1&from=now-1d&to=now&timezone=browser&panelId=3&var-userId=${me.id}`;
 
     function loadHistoryChart() {
       const fromDate = document.getElementById("dateFrom").value;
@@ -367,8 +367,8 @@
       const fromEpoch = fromDate ? new Date(fromDate + "T00:00:00").getTime() : null;
       const toEpochVal = toDate ? new Date(toDate + "T23:59:59").getTime() : null;
 
-      let historyUrl = `http://analytics.sg-akc.com/d-solo/bc26ffb9-588c-4033-a77b-5a10af9df52d/dynamic-qr-code?orgId=1&timezone=browser&panelId=5&__feature.dashboardSceneSolo=true&var-userId=${me.id}&var-qrCodeId=${qrCodeId}`;
-      let extraUrl = `http://analytics.sg-akc.com/d-solo/bc26ffb9-588c-4033-a77b-5a10af9df52d/dynamic-qr-code?orgId=1&timezone=browser&panelId=6&__feature.dashboardSceneSolo=true&var-userId=${me.id}&var-qrCodeId=${qrCodeId}`;
+      let historyUrl = `https://analytics.sg-akc.com/d-solo/bc26ffb9-588c-4033-a77b-5a10af9df52d/dynamic-qr-code?orgId=1&timezone=browser&panelId=5&__feature.dashboardSceneSolo=true&var-userId=${me.id}&var-qrCodeId=${qrCodeId}`;
+      let extraUrl = `https://analytics.sg-akc.com/d-solo/bc26ffb9-588c-4033-a77b-5a10af9df52d/dynamic-qr-code?orgId=1&timezone=browser&panelId=6&__feature.dashboardSceneSolo=true&var-userId=${me.id}&var-qrCodeId=${qrCodeId}`;
 
       if (fromEpoch && toEpochVal) {
         historyUrl += `&from=${fromEpoch}&to=${toEpochVal}&var-DateFrom=${fromDate}&var-DateTo=${toDate}`;
