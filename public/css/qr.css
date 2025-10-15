@@ -236,6 +236,7 @@
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2; /* standard property for compatibility */
   -webkit-box-orient: vertical;
   cursor: help; /* Indicate there's more info */
   position: relative;

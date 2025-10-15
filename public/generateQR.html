@@ -407,9 +407,9 @@
   function updateTagsDisplay() {
     const display = document.getElementById('tagsDisplay');
     display.innerHTML = tags.map((tag, index) => `
-      <span class="tag" style="background-color: ${tag.color}; color: white;">
+      <span class="tag" style="background-color: ${tag.color}; color: white;" onclick="populateTagInput('${tag.name}', '${tag.color}')">
         ${tag.name}
-        <button type="button" onclick="removeTag(${index})" class="tag-remove">×</button>
+        <button type="button" onclick="event.stopPropagation(); removeTag(${index})" class="tag-remove">×</button>
       </span>
     `).join('');
   }
@@ -418,6 +418,13 @@
     const tagsJson = JSON.stringify(tags);
     document.getElementById('tagsHidden').value = tagsJson;
     console.log('Updated hidden tags field:', tagsJson);
+  }
+  
+  // Populate tag input fields when clicking on existing tags
+  function populateTagInput(name, color) {
+    document.getElementById('tagNameInput').value = name;
+    document.getElementById('tagColorInput').value = color;
+    hideTagDropdown();
   }
   
   // Tag input event listeners
@@ -855,6 +862,16 @@
     
     // Load existing tags
     loadExistingTags();
+    
+    // Add click handler for tags display area
+    document.getElementById('tagsDisplay').addEventListener('click', (e) => {
+      // If clicking on empty space (not on a tag), clear inputs for new tag
+      if (e.target.id === 'tagsDisplay') {
+        document.getElementById('tagNameInput').value = '';
+        document.getElementById('tagColorInput').value = '#4ecdc4';
+        document.getElementById('tagNameInput').focus();
+      }
+    });
     
     // Add event listeners for preview updates
     ['fg','bg','ec','logoSizePct','name','url','slug'].forEach(name => {

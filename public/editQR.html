@@ -704,6 +704,16 @@
         }
       });
       
+      // Add click handler for edit tags display area
+      document.getElementById('editTagsDisplay').addEventListener('click', (e) => {
+        // If clicking on empty space (not on a tag), clear inputs for new tag
+        if (e.target.id === 'editTagsDisplay') {
+          document.getElementById('editTagNameInput').value = '';
+          document.getElementById('editTagColorInput').value = '#4ecdc4';
+          document.getElementById('editTagNameInput').focus();
+        }
+      });
+      
       document.getElementById('editTagNameInput').focus();
     } else {
       const originalValue = fieldElement.textContent;
@@ -776,11 +786,17 @@
   function updateEditTagsDisplay() {
     const display = document.getElementById('editTagsDisplay');
     display.innerHTML = editTags.map((tag, index) => `
-      <span class="tag" style="background-color: ${tag.color}; color: white;">
+      <span class="tag" style="background-color: ${tag.color}; color: white;" onclick="populateEditTagInput('${tag.name}', '${tag.color}')">
         ${tag.name}
-        <button type="button" onclick="removeEditTag(${index})" class="tag-remove">×</button>
+        <button type="button" onclick="event.stopPropagation(); removeEditTag(${index})" class="tag-remove">×</button>
       </span>
     `).join('');
+  }
+  
+  // Populate edit tag input fields when clicking on existing tags
+  function populateEditTagInput(name, color) {
+    document.getElementById('editTagNameInput').value = name;
+    document.getElementById('editTagColorInput').value = color;
   }
 
   // Save field function
