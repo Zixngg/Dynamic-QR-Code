@@ -58,7 +58,15 @@
             </div>
             <div style="margin-bottom: 8px;"><a id="qrDyn" class="link" href="#" target="_blank">Open dynamic link</a></div>
             <div style="margin-bottom: 12px;">
-              <a id="dlLink" class="link" href="#" download>Download QR Code (SVG)</a>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span>Download QR Code:</span>
+                <select id="downloadFormat" style="padding: 4px 8px; border: 1px solid var(--border); border-radius: 4px;">
+                  <option value="svg">SVG</option>
+                  <option value="png">PNG</option>
+                  <option value="jpeg">JPEG</option>
+                </select>
+                <a id="dlLink" class="link" href="#" download>Download</a>
+              </div>
             </div>
           </div>
         </div>
@@ -609,9 +617,10 @@
   // Download functionality
   document.getElementById('dlLink').addEventListener('click', (e) => {
     e.preventDefault();
+    const format = document.getElementById('downloadFormat').value;
     const link = document.createElement('a');
-    link.href = '/qr/' + encodeURIComponent(slug) + '/svg';
-    link.download = slug + '.svg';
+    link.href = '/qr/' + encodeURIComponent(slug) + '/' + format;
+    link.download = slug + '.' + format;
     link.click();
   });
 

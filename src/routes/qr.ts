@@ -683,6 +683,108 @@ export default async function qrRoutes(app: FastifyInstance) {
     reply.header('Content-Type', 'image/svg+xml').send(svg);
   });
 
+  // ---------- Serve QR as PNG ----------
+  app.get('/qr/:slug/png', async (req, reply) => {
+    const { slug } = req.params as any;
+    const pool = await getPool();
+    const r = await pool.request()
+      .input('slug', SQL.NVarChar(64), slug)
+      .query(`SELECT TOP 1 Design FROM dbo.[QR_Code] WHERE Slug=@slug`);
+    if (!r.recordset.length) return reply.code(404).send('Not found');
+
+    const design = JSON.parse(r.recordset[0].Design || '{}');
+    const fg = design.fg || '#0b3d91';
+    const ecMap: any = { L: 'low', M: 'medium', Q: 'quartile', H: 'high' };
+    const errorCorrectionLevel = ecMap[(design.ec || 'M')] || 'medium';
+
+    const content = `${PUBLIC_BASE_URL}/r/${slug}`;
+
+    // If there's a logo, generate SVG first then convert to PNG
+    if (design.logoUrl) {
+      let svg = await QRCode.toString(content, {
+        type: 'svg',
+        color: { dark: fg }, // omit light for transparent background
+        errorCorrectionLevel,
+        margin: 2,
+        width: 512
+      });
+      const href = await resolveLogoHref(design.logoUrl);
+      if (href) svg = injectLogoIntoSvg(svg, href, Number(design.logoSizePct) || 22, false, 'transparent', fg);
+      
+      // Convert SVG to PNG using QRCode library
+      const pngBuffer = await QRCode.toBuffer(svg, {
+        type: 'png',
+        width: 512
+      });
+      
+      reply.header('Content-Type', 'image/png').send(pngBuffer);
+    } else {
+      // Generate PNG with transparent background (no logo)
+      const pngBuffer = await QRCode.toBuffer(content, {
+        type: 'png',
+        color: { dark: fg }, // omit light for transparent background
+        errorCorrectionLevel,
+        margin: 2,
+        width: 512
+      });
+
+      reply.header('Content-Type', 'image/png').send(pngBuffer);
+    }
+  });
+
+  // ---------- Serve QR as JPEG ----------
+  app.get('/qr/:slug/jpeg', async (req, reply) => {
+    const { slug } = req.params as any;
+    const pool = await getPool();
+    const r = await pool.request()
+      .input('slug', SQL.NVarChar(64), slug)
+      .query(`SELECT TOP 1 Design FROM dbo.[QR_Code] WHERE Slug=@slug`);
+    if (!r.recordset.length) return reply.code(404).send('Not found');
+
+    const design = JSON.parse(r.recordset[0].Design || '{}');
+    const fg = design.fg || '#0b3d91';
+    const bg = design.bg || '#ffffff';
+    const ecMap: any = { L: 'low', M: 'medium', Q: 'quartile', H: 'high' };
+    const errorCorrectionLevel = ecMap[(design.ec || 'M')] || 'medium';
+
+    const content = `${PUBLIC_BASE_URL}/r/${slug}`;
+
+    // If there's a logo, generate SVG first then convert to JPEG
+    if (design.logoUrl) {
+      let svg = await QRCode.toString(content, {
+        type: 'svg',
+        color: { dark: fg, light: bg },
+        errorCorrectionLevel,
+        margin: 2,
+        width: 512
+      });
+      const href = await resolveLogoHref(design.logoUrl);
+      if (href) svg = injectLogoIntoSvg(svg, href, Number(design.logoSizePct) || 22, false, bg, fg);
+      
+      // Convert SVG to JPEG using QRCode library
+      const jpegBuffer = await QRCode.toBuffer(content, {
+        type: 'png',
+        color: { dark: fg, light: bg },
+        errorCorrectionLevel,
+        margin: 2,
+        width: 512
+      });
+      
+      reply.header('Content-Type', 'image/jpeg').send(jpegBuffer);
+    } else {
+      // Generate JPEG with white background (no logo)
+      const jpegBuffer = await QRCode.toBuffer(content, {
+        type: 'png',
+        color: { dark: fg, light: bg },
+        errorCorrectionLevel,
+        margin: 2,
+        width: 512
+      });
+
+      reply.header('Content-Type', 'image/jpeg').send(jpegBuffer);
+    }
+  });
+
   // ---------- Get QR Code Data for Editing ----------
   app.get('/qr/:slug/data', async (req, reply) => {
     let user: AccessPayload;
