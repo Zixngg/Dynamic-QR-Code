@@ -227,19 +227,16 @@
   font-size: 18px;
   font-weight: 600;
   color: var(--text);
-  margin: 0 0 8px 0;
-  line-height: 1.4;
+  margin: 0 0 6px 0;
+  line-height: 1.5;
   word-wrap: break-word;
   overflow-wrap: break-word;
   hyphens: auto;
-  max-height: 2.8em; /* Limit to 2 lines */
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2; /* standard property for compatibility */
-  -webkit-box-orient: vertical;
-  cursor: help; /* Indicate there's more info */
-  position: relative;
+  /* Allow natural multi-line wrapping */
+  max-height: none;
+  overflow: visible;
+  display: block;
+  cursor: default;
 }
 
 .qr-slug {
