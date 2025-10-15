@@ -216,6 +216,7 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
+  min-height: 0; /* Allow flex items to shrink */
 }
 
 .qr-info-left {
@@ -226,8 +227,16 @@
   font-size: 18px;
   font-weight: 600;
   color: var(--text);
-  margin: 0 0 8px 0;
-  line-height: 1.3;
+  margin: 0 0 6px 0;
+  line-height: 1.5;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  /* Allow natural multi-line wrapping */
+  max-height: none;
+  overflow: visible;
+  display: block;
+  cursor: default;
 }
 
 .qr-slug {
@@ -251,6 +260,8 @@
   align-items: flex-start;
   justify-content: flex-end;
   min-width: 0;
+  max-width: 120px; /* Limit width to prevent overflow */
+  flex-shrink: 0; /* Don't shrink tags area */
 }
 
 .qr-tags .tag {

@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <title>Generate QR • Dynamic QR Code</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" type="image/png" href="/logo.png">
   <!-- Shared styles -->
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/header.css">
@@ -79,7 +80,7 @@
             <span class="label-optional">Optional</span>
           </label>
           <div class="input-with-prefix">
-            <span class="input-prefix">yourdomain.com/r/</span>
+            <span class="input-prefix">dynamicqr.sg-akc.com/r/</span>
             <input class="input" type="text" name="slug" placeholder="summer-promo" pattern="[a-zA-Z0-9\-]+">
           </div>
           <div class="help">Create a custom short link. If left blank, we'll generate one automatically (e.g., abc123).</div>
@@ -120,39 +121,7 @@
         </div>
       </div>
 
-      <!-- Section 2: UTM Tracking -->
-      <div class="form-section collapsible" data-section="1">
-        <div class="section-header" onclick="toggleSection(this)">
-          <h3>📊 UTM Tracking</h3>
-          <div class="header-right">
-            <span class="section-badge optional">Optional</span>
-            <span class="toggle-icon">▼</span>
-          </div>
-        </div>
-        <div class="section-content" style="display: none;">
-          <div class="section-description">
-            Track your QR code performance with UTM parameters. These help you identify traffic sources in Google Analytics.
-          </div>
-          
-          <div class="row row-inline">
-            <div class="input-group">
-              <label class="input-label">utm_source</label>
-              <input class="input" type="text" name="utm_source" placeholder="e.g., flyer, poster, business-card">
-              <div class="help">Where did users find this QR code?</div>
-            </div>
-            <div class="input-group">
-              <label class="input-label">utm_medium</label>
-              <input class="input" type="text" name="utm_medium" placeholder="e.g., qr, print, digital">
-              <div class="help">What type of medium?</div>
-            </div>
-            <div class="input-group">
-              <label class="input-label">utm_campaign</label>
-              <input class="input" type="text" name="utm_campaign" placeholder="e.g., summer2024, launch-event">
-              <div class="help">What campaign is this for?</div>
-            </div>
-          </div>
-        </div>
-      </div>
+      
 
       <!-- Design and Preview Side-by-Side -->
       <div class="form-section collapsible" data-section="2">
@@ -178,8 +147,8 @@
                   <div class="color-inputs">
                     <div class="color-input">
                       <label class="color-label">Foreground</label>
-                      <input class="input color-picker" type="color" name="fg" value="#0b3d91">
-                      <span class="color-value">#0b3d91</span>
+                      <input class="input color-picker" type="color" name="fg" value="#000089">
+                      <span class="color-value">#000089</span>
                     </div>
                     <div class="color-input">
                       <label class="color-label">Background</label>
@@ -255,7 +224,7 @@
               <div class="preview-info">
                 <div class="info-item">
                   <span class="info-label">Short Link:</span>
-                  <span class="info-value" id="previewShortLink">yourdomain.com/r/abc123</span>
+                  <span class="info-value" id="previewShortLink">dynamicqr.sg-akc.com/r/abc123</span>
                 </div>
                 <div class="info-item">
                   <span class="info-label">Destination:</span>
@@ -438,9 +407,9 @@
   function updateTagsDisplay() {
     const display = document.getElementById('tagsDisplay');
     display.innerHTML = tags.map((tag, index) => `
-      <span class="tag" style="background-color: ${tag.color}; color: white;">
+      <span class="tag" style="background-color: ${tag.color}; color: white;" onclick="populateTagInput('${tag.name}', '${tag.color}')">
         ${tag.name}
-        <button type="button" onclick="removeTag(${index})" class="tag-remove">×</button>
+        <button type="button" onclick="event.stopPropagation(); removeTag(${index})" class="tag-remove">×</button>
       </span>
     `).join('');
   }
@@ -449,6 +418,13 @@
     const tagsJson = JSON.stringify(tags);
     document.getElementById('tagsHidden').value = tagsJson;
     console.log('Updated hidden tags field:', tagsJson);
+  }
+  
+  // Populate tag input fields when clicking on existing tags
+  function populateTagInput(name, color) {
+    document.getElementById('tagNameInput').value = name;
+    document.getElementById('tagColorInput').value = color;
+    hideTagDropdown();
   }
   
   // Tag input event listeners
@@ -533,9 +509,9 @@
     const logoSizePct = document.getElementById('logoSizePct').value || '22';
     const url = document.querySelector('[name="url"]').value || '';
     const slug = document.querySelector('[name="slug"]').value || '';
-    const utmSource = document.querySelector('[name="utm_source"]').value || '';
-    const utmMedium = document.querySelector('[name="utm_medium"]').value || '';
-    const utmCampaign = document.querySelector('[name="utm_campaign"]').value || '';
+    const utmSource = '';
+    const utmMedium = '';
+    const utmCampaign = '';
 
     // Build the preview URL with actual destination
     let previewUrl = url;
@@ -633,7 +609,7 @@
     
     // Update preview info
     const shortLinkSlug = slug || 'abc123';
-    const shortLink = `yourdomain.com/r/${shortLinkSlug}`;
+    const shortLink = `dynamicqr.sg-akc.com/r/${shortLinkSlug}`;
     const destination = previewUrl || 'https://example.com';
     
     document.getElementById('previewShortLink').textContent = shortLink;
@@ -887,8 +863,18 @@
     // Load existing tags
     loadExistingTags();
     
+    // Add click handler for tags display area
+    document.getElementById('tagsDisplay').addEventListener('click', (e) => {
+      // If clicking on empty space (not on a tag), clear inputs for new tag
+      if (e.target.id === 'tagsDisplay') {
+        document.getElementById('tagNameInput').value = '';
+        document.getElementById('tagColorInput').value = '#4ecdc4';
+        document.getElementById('tagNameInput').focus();
+      }
+    });
+    
     // Add event listeners for preview updates
-    ['fg','bg','ec','logoSizePct','name','url','slug','utm_source','utm_medium','utm_campaign'].forEach(name => {
+    ['fg','bg','ec','logoSizePct','name','url','slug'].forEach(name => {
       const element = document.querySelector(`[name="${name}"]`);
       if (element) {
         element.addEventListener('change', refreshPreview);
