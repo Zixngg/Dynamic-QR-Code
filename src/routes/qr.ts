@@ -146,13 +146,13 @@ export default async function qrRoutes(app: FastifyInstance) {
     const logoUrl = q.logoUrl ? await resolveLogoHref(String(q.logoUrl)) : '';
     const logoSizePct = Number(q.logoSizePct || 22);
     const debug = String(q.debug || '0') === '1';
-
-    console.log('Preview request:', { fg, bg, ec, logoUrl: logoUrl ? 'data:...' : 'none', logoSizePct, debug });
+    const slug = String(q.slug || '').trim();
 
     const ecMap: any = { L: 'low', M: 'medium', Q: 'quartile', H: 'high' };
     const errorCorrectionLevel = ecMap[ec] || 'medium';
 
-    const content = 'https://preview.local/qr';
+    // Use real short link if slug provided so live preview is scannable
+    const content = slug ? `${PUBLIC_BASE_URL}/r/${encodeURIComponent(slug)}` : (String(q.url || 'https://preview.local/qr'));
 
     let svg = await QRCode.toString(content, {
       type: 'svg',
